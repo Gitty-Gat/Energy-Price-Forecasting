@@ -1,0 +1,51 @@
+State Name	Population
+California	39,538,223
+Texas	29,145,505
+Florida	21,538,187
+New York	20,201,249
+Pennsylvania	13,002,700
+Illinois	12,812,508
+Ohio	11,799,448
+Georgia	10,711,908
+North Carolina	10,439,388
+Michigan	10,077,331
+New Jersey	9,288,994
+Virginia	8,631,393
+Washington	7,705,281
+Arizona	7,151,502
+Massachusetts	7,029,917
+Tennessee	6,910,840
+Indiana	6,785,528
+Maryland	6,177,224
+Missouri	6,154,913
+Wisconsin	5,893,718
+Colorado	5,773,714
+Minnesota	5,706,494
+South Carolina	5,118,425
+Alabama	5,024,279
+Louisiana	4,657,757
+Kentucky	4,505,836
+Oregon	4,237,256
+Oklahoma	3,959,353
+Connecticut	3,605,944
+Utah	3,271,616
+Iowa	3,190,369
+Nevada	3,104,614
+Arkansas	3,011,524
+Mississippi	2,961,279
+Kansas	2,937,880
+New Mexico	2,117,522
+Nebraska	1,961,504
+Idaho	1,839,106
+West Virginia	1,793,716
+Hawaii	1,455,271
+New Hampshire	1,377,529
+Maine	1,362,359
+Rhode Island	1,097,379
+Montana	1,084,225
+Delaware	989,948
+South Dakota	886,667
+North Dakota	779,094
+Alaska	733,391
+Vermont	643,077
+Wyoming	576,851

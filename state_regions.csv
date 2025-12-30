@@ -1,0 +1,49 @@
+ST,State,division_id,division_name
+AL,Alabama,6,E S CENTRAL
+AR,Arkansas,7,W S CENTRAL
+AZ,Arizona,8,MOUNTAIN
+CA,California,9,PACIFIC
+CO,Colorado,8,MOUNTAIN
+CT,Connecticut,1,NEW ENGLAND
+DE,Delaware,5,SOUTH ATLANTIC
+FL,Florida,5,SOUTH ATLANTIC
+GA,Georgia,5,SOUTH ATLANTIC
+IA,Iowa,4,W N CENTRAL
+ID,Idaho,8,MOUNTAIN
+IL,Illinois,3,E N CENTRAL
+IN,Indiana,3,E N CENTRAL
+KS,Kansas,4,W N CENTRAL
+KY,Kentucky,6,E S CENTRAL
+LA,Louisiana,7,W S CENTRAL
+MA,Massachusetts,1,NEW ENGLAND
+MD,Maryland,5,SOUTH ATLANTIC
+ME,Maine,1,NEW ENGLAND
+MI,Michigan,3,E N CENTRAL
+MN,Minnesota,4,W N CENTRAL
+MO,Missouri,4,W N CENTRAL
+MS,Mississippi,6,E S CENTRAL
+MT,Montana,8,MOUNTAIN
+NC,North Carolina,5,SOUTH ATLANTIC
+ND,North Dakota,4,W N CENTRAL
+NE,Nebraska,4,W N CENTRAL
+NH,New Hampshire,1,NEW ENGLAND
+NJ,New Jersey,2,MIDDLE ATLANTIC
+NM,New Mexico,8,MOUNTAIN
+NV,Nevada,8,MOUNTAIN
+NY,New York,2,MIDDLE ATLANTIC
+OH,Ohio,3,E N CENTRAL
+OK,Oklahoma,7,W S CENTRAL
+OR,Oregon,9,PACIFIC
+PA,Pennsylvania,2,MIDDLE ATLANTIC
+RI,Rhode Island,1,NEW ENGLAND
+SC,South Carolina,5,SOUTH ATLANTIC
+SD,South Dakota,4,W N CENTRAL
+TN,Tennessee,6,E S CENTRAL
+TX,Texas,7,W S CENTRAL
+UT,Utah,8,MOUNTAIN
+VA,Virginia,5,SOUTH ATLANTIC
+VT,Vermont,8,MOUNTAIN
+WA,Washington,9,PACIFIC
+WI,Wisconsin,3,E N CENTRAL
+WV,West Virginia,5,SOUTH ATLANTIC
+WY,Wyoming,8,MOUNTAIN
