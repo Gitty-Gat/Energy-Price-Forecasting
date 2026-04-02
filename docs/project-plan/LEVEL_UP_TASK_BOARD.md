@@ -40,7 +40,7 @@ The repo is considered leveled up when all of the following are true:
 
 ### Phase 0 — Usable today
 - [x] Add `.gitignore` for generated data, results, caches, editor junk, and local env files.
-- [ ] Remove tracked bulky generated artifacts from git index where appropriate; preserve only code/docs/fixtures/reference essentials.
+- [x] Remove tracked bulky generated artifacts from git index where appropriate; preserve only code/docs/fixtures/reference essentials.
 - [ ] Add `pyproject.toml` with project metadata and core dependencies.
 - [ ] Add `requirements.txt` compatibility export if needed.
 - [ ] Add a canonical entrypoint at `src/pipelines/forecast.py`.
@@ -144,7 +144,7 @@ When the automation session runs, it should:
 
 ## Blocked
 
-- 2026-04-02: Automation run could not execute `git status --short --branch` or create/push a commit because git commands in this environment require an interactive approval. The `.gitignore` slice was prepared locally, but git status / commit / push remain blocked until approval is available.
+- 2026-04-02: `git push` from this environment is not currently safe/available because the configured GitHub SSH credentials are missing (`Permission denied (publickey)`), so even completed local slices may remain unpushed until remote auth is configured.
 
 ---
 
@@ -154,16 +154,28 @@ Registered automation for this board:
 
 - `energy-level-up-automation-loop`
   - job id: `668e5b8c-a86a-4b90-a2c4-78b319eef726`
-  - schedule: every 3 hours
+  - schedule: every 30 minutes
   - session target: `session:energy-level-up`
-  - purpose: complete one highest-priority coherent slice per run
+  - purpose: complete one highest-priority coherent PR-sized slice per run
+- `energy-level-up-deep-work`
+  - job id: `6992be9a-9073-407f-be2e-c54d4e4cc410`
+  - schedule: every 4 hours
+  - session target: `session:energy-level-up`
+  - purpose: handle larger cross-cutting roadmap slices autonomously
+- `energy-level-up-phase-review`
+  - job id: `ddab0483-b288-4fa9-b72f-2ce34feefb6a`
+  - schedule: every 12 hours
+  - session target: `session:energy-level-up`
+  - purpose: re-evaluate priorities, blockers, and upcoming slices
 - `energy-level-up-daily-digest`
   - job id: `0b6a18e0-1562-461e-ade7-5e89bcc90115`
   - schedule: daily at 9:00 AM America/Chicago
   - session target: `session:energy-level-up`
   - purpose: send a concise progress digest
 
-The automation loop was also force-triggered once to begin immediately.
+All repo-changing work is intentionally serialized through the same persistent session target (`session:energy-level-up`) to reduce the chance of concurrent write conflicts in the repository.
+
+The implementation loop was force-triggered previously, and the faster/expanded automation is being force-triggered again after this update.
 
 ## Notes
 
