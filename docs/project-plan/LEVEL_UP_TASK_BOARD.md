@@ -73,7 +73,7 @@ The repo is considered leveled up when all of the following are true:
 - [ ] Add tests for ingestion, merging, schema validation, ARIMAX smoke, VECM smoke, and deterministic seeding.
 
 ### Exit criteria for Phase 1
-- [ ] `pytest` passes on fixture-sized runs.
+- [ ] Focused fixture-sized test suite passes in the local environment (`pytest` in dev environments; stdlib `unittest` fallback is acceptable for constrained automation verification).
 - [ ] Config changes do not require code edits.
 - [ ] VECM behavior is deterministic and auditable.
 - [ ] Invalid input schemas fail fast.
@@ -114,15 +114,23 @@ The repo is considered leveled up when all of the following are true:
 
 ## Active focus order
 
-1. `.gitignore` + dependency management
-2. canonical entrypoint + archive-import removal
-3. deterministic seeding + run metadata
-4. Hydra configs
-5. pandera schemas
-6. VECM refactor
-7. pytest suite
-8. DVC + CI + Docker
-9. MLflow + docs + API
+1. finish focused ingestion / merge / schema / model smoke coverage and verify it cleanly
+2. close Phase 1 exit criteria with fixture-sized verification and schema-failure checks
+3. validate Phase 2 exit criteria already scaffolded (DVC / CI / Docker / docs / API boot)
+4. remove any remaining large mutable tracked artifacts and align them with DVC / ignore policy
+5. defer Phase 3 benchmark/community work until Phases 1-2 are actually verified
+
+## Immediate next slices
+
+1. **Verify and commit `tests/test_forecasting_stack.py`**
+   - Run: `python3 -m unittest discover -s tests -p 'test_forecasting_stack.py' -q`
+   - If green: commit the focused test slice and mark the remaining Phase 1 test item done.
+2. **Make fixture-sized local verification repeatable**
+   - Either install/enable `pytest` in the dev environment, or keep the constrained-session `unittest` fallback documented while CI remains the authoritative `pytest` runner.
+   - Then verify `tests/test_forecast_pipeline.py` plus `tests/test_forecasting_stack.py` together.
+3. **Reconcile Phase 2 verification vs scaffolding**
+   - Run the smallest checks for `dvc repro` shape, Docker build, docs build, and API boot.
+   - Only after those checks, mark the corresponding exit criteria complete.
 
 ---
 
@@ -142,10 +150,17 @@ When the automation session runs, it should:
 
 ---
 
+## Dependency / environment notes
+
+- The repo metadata expects a richer dev environment than this automation session currently has on PATH.
+- `pytest` is not installed in the current session runtime, even though test coverage work now depends on it conceptually and CI is expected to run it.
+- `python3` is available and can run stdlib `unittest`, which is the current constrained-session fallback for focused verification.
+- GitHub SSH push credentials are not configured in this environment, so local commits may accumulate without a successful push.
+
 ## Blocked
 
-- 2026-04-02: `git push` from this environment is not currently safe/available because the configured GitHub SSH credentials are missing (`Permission denied (publickey)`), so even completed local slices may remain unpushed until remote auth is configured. Re-confirmed after local commits `00c02ec`, `ada3403`, `3f2ac62`, `7bcf23d`, `d229641`, and `2d48b1c`.
-- 2026-04-02: The focused verification command for the new test slice ran but failed because the environment does not currently have `pytest` installed: `/usr/bin/python3: No module named pytest`. Until the dev dependencies from `pyproject.toml`/`requirements.txt` are installed, the ingestion/merge/schema/model smoke test slice cannot be verified or committed responsibly.
+- 2026-04-02: `git push` from this environment is not currently safe/available because the configured GitHub SSH credentials are missing (`Permission denied (publickey)`). Local commits can still be created, but remote sync cannot be assumed until SSH auth is configured.
+- 2026-04-02: The focused ingestion/merge/schema/model smoke test slice is still in progress in the working tree (`tests/test_forecasting_stack.py`). The current pending verification command is `python3 -m unittest discover -s tests -p 'test_forecasting_stack.py' -q` (latest approval id `ecfb0eeb`; earlier pending ids may be stale). Until that verification runs green, this slice should not be committed.
 
 ---
 
