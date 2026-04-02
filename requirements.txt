@@ -1,0 +1,14 @@
+# Compatibility export from pyproject.toml core + common extras.
+# Prefer `pip install -e .` for local development when build tooling is available.
+arch==7.2.0
+beautifulsoup4==4.12.3
+feedparser==6.0.11
+lxml==5.3.0
+matplotlib==3.9.2
+numpy==1.26.4
+pandas==2.2.3
+pyarrow==18.1.0
+requests==2.32.3
+scipy==1.14.1
+statsmodels==0.14.4
+trafilatura==1.12.2

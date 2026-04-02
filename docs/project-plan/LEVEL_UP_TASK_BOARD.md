@@ -41,8 +41,8 @@ The repo is considered leveled up when all of the following are true:
 ### Phase 0 — Usable today
 - [x] Add `.gitignore` for generated data, results, caches, editor junk, and local env files.
 - [x] Remove tracked bulky generated artifacts from git index where appropriate; preserve only code/docs/fixtures/reference essentials.
-- [ ] Add `pyproject.toml` with project metadata and core dependencies.
-- [ ] Add `requirements.txt` compatibility export if needed.
+- [x] Add `pyproject.toml` with project metadata and core dependencies.
+- [x] Add `requirements.txt` compatibility export if needed.
 - [ ] Add a canonical entrypoint at `src/pipelines/forecast.py`.
 - [ ] Refactor live forecast flow so nothing imports from `src/pipelines/archive/`.
 - [ ] Make `energy_pipeline_forecast_v2.3.py` a thin wrapper or retire it in favor of the canonical entrypoint.
