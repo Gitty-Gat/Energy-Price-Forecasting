@@ -1,98 +1,116 @@
 # Energy Price Forecasting
 
-A research-stage repository for forecasting **natural gas** and **crude oil** prices using a combination of:
+A research-stage repository for forecasting **natural gas** and **crude oil** using:
 - ARIMAX mean models
 - GARCH volatility modeling
 - VECM cointegration modeling
-- weather-based exogenous drivers (HDD/CDD)
+- weather exogenous drivers (HDD/CDD)
 - optional news-derived sentiment features
 
-The repository already contains data, model outputs, diagnostics, and backtest artifacts. It has been **partially implemented and validated**, but it is **not yet production-ready**. The current priority is repository formalization, auditability, and structural cleanup rather than introducing new model classes.
+The repository has been **standardized for structure and auditability**. It already contains validated research artifacts, but it is still **not production-ready**.
 
 ---
 
-## Project status
+## Current status
 
-**Current status:** validated research pipeline, not yet productionized.
+**Status:** validated research pipeline, standardized repository layout, still pre-production.
 
 What is already present:
-- historical price data
-- weather and sentiment feature inputs
-- merged modeling tables
-- ARIMAX / GARCH / VECM modeling code
-- forecast outputs for multiple horizons
-- saved parameter files and model summaries
-- backtest and diagnostic artifacts
+- raw and processed data artifacts
+- ARIMAX / GARCH / VECM model code
+- merged exogenous modeling tables
+- saved forecasts, model summaries, params, and diagnostics
+- backtest artifacts and comparison outputs
+- audit and structure documentation
 
-What is still missing or incomplete:
-- a fully standardized directory structure
-- one canonical production entrypoint
-- explicit artifact lineage between scripts and outputs
-- formal tests and reproducibility guarantees
-- production deployment conventions
-
----
-
-## Repository purpose
-
-This project is designed to support end-to-end energy-price forecasting workflows for:
-- **Natural Gas (NG)**
-- **Crude Oil (OL)**
-
-The repo includes both:
-1. **integrated pipeline drivers** that load inputs, fit models, and write forecasts
-2. **supporting utilities** for ingestion, feature engineering, diagnostics, and evaluation
+What is still incomplete:
+- one formally designated canonical production entrypoint
+- robust automated test coverage beyond smoke/layout checks
+- locked environment / packaging metadata
+- explicit artifact lineage enforcement across all historical runs
+- deployment / scheduling conventions for production operation
 
 ---
 
-## Data sources represented in the repository
+## Standardized repository layout
 
-## Price data
-The repository includes price inputs and download tooling for:
-- natural gas prompt-month futures
-- oil prompt-month futures
-- EIA-sourced daily natural gas series
-- EIA-sourced daily crude oil series
+```text
+Energy-Price-Forecasting/
+├── README.md
+├── docs/
+│   ├── diagnostics/
+│   └── project-plan/
+├── data/
+│   ├── processed/
+│   ├── raw/
+│   └── reference/
+├── results/
+│   ├── backtests/
+│   ├── diagnostics/
+│   ├── forecasts/
+│   ├── params/
+│   └── summaries/
+├── src/
+│   ├── diagnostics/
+│   ├── features/
+│   ├── ingestion/
+│   ├── models/
+│   └── pipelines/
+└── tests/
+```
 
-Relevant files include:
-- `NG_prompt_month_futures_price.csv`
-- `Oil_prompt_month_futures_price.csv`
-- `natural_gas_prices.csv`
-- `crude_oil_prices.csv`
-- `eia_daily_prices.py`
+This separation is intentional:
+- `src/` contains code
+- `data/` contains inputs and engineered datasets
+- `results/` contains model outputs and evaluation artifacts
+- `docs/` contains audit/synthesis documentation
+- `tests/` contains lightweight repository checks
 
-## Weather data
-Weather exogenous drivers are based on **Heating Degree Days (HDD)** and **Cooling Degree Days (CDD)**.
+---
 
-Relevant files include:
-- `noaa_hdd_cdd_scraper.py`
-- `hdd_cdd_forecast.csv`
-- `weather.csv`
-- `weather_nat.csv`
-- `weather_lagged.csv`
+## Data sources represented in the repo
 
-## Sentiment data
-The repository also includes a news/sentiment pipeline for generating commodity-linked sentiment features.
+## Prices
+Relevant files:
+- `data/raw/prices/NG_prompt_month_futures_price.csv`
+- `data/raw/prices/Oil_prompt_month_futures_price.csv`
+- `data/raw/prices/natural_gas_prices.csv`
+- `data/raw/prices/crude_oil_prices.csv`
+- `src/ingestion/eia_daily_prices.py`
 
-Relevant files include:
-- `news_pipeline.py`
-- `exog_sentiment_pipeline.py`
-- `sentiment_integration.py`
-- `sentiment_exog.csv`
+## Weather
+Relevant files:
+- `src/ingestion/noaa_hdd_cdd_scraper.py`
+- `data/raw/weather/hdd_cdd_forecast.csv`
+- `data/raw/weather/weather.csv`
+- `data/processed/weather_nat.csv`
+- `data/processed/weather_lagged.csv`
+
+## Sentiment
+Relevant files:
+- `src/ingestion/news_pipeline.py`
+- `src/features/exog_sentiment_pipeline.py`
+- `src/features/sentiment_integration.py`
+- `data/raw/sentiment/sentiment_exog.csv`
+
+## Reference data
+Relevant files:
+- `data/reference/pops_avg.csv`
+- `data/reference/populations_by_state_cencus_2010.txt`
+- `data/reference/populations_by_state_cencus_2020.txt`
+- `data/reference/state_regions.csv`
+- `data/reference/states_by_region.txt`
 
 ---
 
 ## Modeling approach
 
 ## 1. Exogenous feature assembly
-The repo contains a merged-data workflow built around `merge_exog_pipeline.py`, which combines:
-- NG prices
-- oil prices
-- HDD/CDD weather features
-- optional sentiment inputs
+The merged-data workflow is centered on:
+- `src/features/merge_exog_pipeline.py`
 
-The merged output is stored as:
-- `merged_exog.csv`
+This produces:
+- `data/processed/merged_exog.csv`
 
 Observed fields include:
 - `PRICE_NG`
@@ -108,126 +126,109 @@ Observed fields include:
 - `is_future`
 
 ## 2. Univariate mean models
-The repository includes ARIMAX-style mean models for both natural gas and oil.
+The repo includes ARIMAX-style mean models for both natural gas and oil.
 
-- NG uses an ARIMAX specification with configurable order.
-- Oil uses an ARIMAX specification centered around `(0,0,4)` in the saved workflow.
+Relevant code:
+- `src/models/arimax.py`
+- `src/models/arimax_garch.py`
+- `src/pipelines/archive/energy_pipeline_forecast_v1.2.py`
+- `src/pipelines/energy_pipeline_forecast_v2.3.py`
 
 ## 3. Volatility modeling
-Natural gas residuals are modeled with **GARCH(1,1)** and **Student-t innovations** in the saved artifacts.
+Natural gas residuals are modeled with GARCH(1,1), including Student-t innovations in saved artifacts.
 
-Relevant files:
-- `arimax_garch.py`
-- `NG_ARIMAX_GARCH_summary.txt`
-- `params_ng.json`
+Relevant outputs:
+- `results/summaries/NG_ARIMAX_GARCH_summary.txt`
+- `results/params/params_ng.json`
 
 ## 4. Cointegration / system modeling
-The repository includes **VECM** logic for joint modeling of NG and oil levels.
+The repository includes VECM logic for NG / oil joint dynamics.
 
-Relevant files:
-- `vecm_garch.py`
-- `VECM_summary.txt`
-
----
-
-## Pipeline summary
-
-There are currently **two overlapping pipeline paths** in the repo.
-
-## Path A — merged-data path
-1. Acquire / stage price data
-2. Acquire / stage HDD/CDD weather data
-3. Acquire / compute sentiment features
-4. Merge all exogenous inputs with `merge_exog_pipeline.py`
-5. Create `merged_exog.csv`
-6. Forecast using `energy_pipeline_forecast_v2.3.py`
-7. Write:
-   - `forecast_returns_h*.csv`
-   - `forecast_prices_h*.csv`
-   - forecast plots
-
-## Path B — integrated v1.2 path
-1. Load NG / oil / exogenous CSVs directly
-2. Aggregate weather features if needed
-3. Create lagged exogenous variables
-4. Compute log levels and differenced logs
-5. Run stationarity diagnostics
-6. Fit:
-   - NG ARIMAX + GARCH
-   - Oil ARIMAX
-   - VECM
-7. Write:
-   - `stationarity_diagnostics.csv`
-   - `NG_ARIMAX_GARCH_summary.txt`
-   - `OL_ARIMAX_summary.txt`
-   - `VECM_summary.txt`
-   - `params_ng.json`
-   - `params_ol.json`
-   - `forecasts_levels.csv`
+Relevant code and outputs:
+- `src/models/vecm_garch.py`
+- `results/summaries/VECM_summary.txt`
 
 ---
 
-## Diagnostics and evaluation
+## Canonical workflow narrative
 
-The repo already includes substantial diagnostic work:
-- stationarity testing
-- residual testing
-- rolling / expanding backtests
-- forecast plots
-- Python-vs-R output comparisons
+There are still multiple historical pipeline generations, but the clearest current operational path is:
 
-Relevant artifacts:
-- `stationarity_diagnostics.csv`
-- `backtest_metrics_combined.csv`
-- `python_vs_r_comparison.csv`
-- multiple PNG plots at repository root
-
-At a high level, the saved diagnostics suggest:
-- differenced log series are appropriate for ARIMAX modeling
-- NG volatility clustering is real and material
-- oil mean residual structure is somewhat cleaner than NG
-- heavy tails remain important for both markets
-- evaluation exists, but uncertainty calibration is not yet fully trustworthy across regimes
+```text
+raw inputs
+→ src/features/merge_exog_pipeline.py
+→ data/processed/merged_exog.csv
+→ src/pipelines/energy_pipeline_forecast_v2.3.py
+→ results/forecasts/
+→ src/diagnostics/...
+→ results/diagnostics/ and results/backtests/
+```
 
 ---
 
-## Important caveats
+## Main code locations
 
-This repository should currently be treated as a **research / validation environment**, not a production system.
+## Ingestion
+- `src/ingestion/data_ingestion.py`
+- `src/ingestion/eia_daily_prices.py`
+- `src/ingestion/noaa_hdd_cdd_scraper.py`
+- `src/ingestion/news_pipeline.py`
 
-Reasons:
-- multiple forecasting driver versions coexist
-- code, data, outputs, and plots are still mixed at the repository root
-- artifact lineage is implicit rather than explicit
-- some saved outputs appear to come from different pipeline generations
-- diagnostics support continued development, not full operational deployment
+## Feature engineering
+- `src/features/merge_exog_pipeline.py`
+- `src/features/exog_sentiment_pipeline.py`
+- `src/features/sentiment_integration.py`
+
+## Models
+- `src/models/arimax.py`
+- `src/models/arimax_garch.py`
+- `src/models/vecm_garch.py`
+
+## Pipelines
+- `src/pipelines/forecasting_pipeline.py`
+- `src/pipelines/energy_pipeline_forecast_v2.3.py`
+- `src/pipelines/archive/` for historical driver versions
+
+## Diagnostics / evaluation
+- `src/diagnostics/backtest_runner.py`
+- `src/diagnostics/energy_pipeline_diagnostics_v1.py`
+- `src/diagnostics/energy_pipeline_plot_v1.py`
 
 ---
 
-## Key files
+## Main artifact locations
 
-## Core scripts
-- `merge_exog_pipeline.py`
-- `energy_pipeline_forecast_v1.2.py`
-- `energy_pipeline_forecast_v2.3.py`
-- `backtest_runner.py`
-- `energy_pipeline_diagnostics_v1.py`
-- `vecm_garch.py`
+## Processed data
+- `data/processed/merged_exog.csv`
+- `data/processed/weather_nat.csv`
+- `data/processed/weather_lagged.csv`
 
-## Core artifacts
-- `merged_exog.csv`
-- `forecasts_levels.csv`
-- `forecast_returns_h10.csv`
-- `forecast_returns_h20.csv`
-- `forecast_prices_h10.csv`
-- `forecast_prices_h20.csv`
-- `params_ng.json`
-- `params_ol.json`
-- `NG_ARIMAX_GARCH_summary.txt`
-- `OL_ARIMAX_summary.txt`
-- `VECM_summary.txt`
+## Forecast outputs
+- `results/forecasts/forecasts_levels.csv`
+- `results/forecasts/forecast_returns_h10.csv`
+- `results/forecasts/forecast_returns_h20.csv`
+- `results/forecasts/forecast_prices_h10.csv`
+- `results/forecasts/forecast_prices_h20.csv`
+- `results/forecasts/forecast_prices_h10.png`
+- `results/forecasts/forecast_prices_h20.png`
 
-## Documentation created during the audit phase
+## Model parameters and summaries
+- `results/params/params_ng.json`
+- `results/params/params_ol.json`
+- `results/summaries/NG_ARIMAX_GARCH_summary.txt`
+- `results/summaries/OL_ARIMAX_summary.txt`
+- `results/summaries/VECM_summary.txt`
+
+## Diagnostics and backtests
+- `results/diagnostics/stationarity_diagnostics.csv`
+- `results/diagnostics/python_vs_r_comparison.csv`
+- `results/backtests/backtest_metrics_combined.csv`
+- `results/backtests/*.png`
+
+---
+
+## Documentation created during audit / standardization
+
 - `docs/project-plan/REPO_AUDIT.md`
 - `docs/project-plan/PIPELINE_FLOW.md`
 - `docs/project-plan/STRUCTURE_PLAN.md`
@@ -236,16 +237,35 @@ Reasons:
 
 ---
 
-## Recommended next steps
+## Diagnostics summary
 
-1. Standardize the repository layout into `src/`, `data/`, `results/`, `docs/`, and `tests/`.
-2. Designate one forecasting entrypoint as canonical.
-3. Update internal paths to match the standardized structure.
-4. Add smoke tests for ingestion, merge, forecast, and diagnostics stages.
-5. Preserve historical scripts, but move them into an archived pipeline area.
+At a high level, saved diagnostics indicate:
+- differenced log series are appropriate for ARIMAX-style modeling
+- NG volatility clustering is material
+- oil residual structure is cleaner than NG in the saved outputs
+- heavy tails remain important for both markets
+- evaluation artifacts exist, but interval calibration is not yet uniformly trustworthy across regimes
+
+That supports the claim that this is a **validated research system**, not yet a production forecasting system.
 
 ---
 
-## License / usage
+## Lightweight test scaffold
 
-No license normalization was performed during this audit phase. If this repo is intended for wider sharing or operational use, licensing and dependency documentation should be formalized next.
+The repository now includes a basic `tests/` scaffold for structure and path smoke checks. It is not yet a full model-validation suite.
+
+---
+
+## Recommended next steps
+
+1. Designate one canonical entrypoint for operational forecasting.
+2. Add stronger automated tests for ingestion, merge, forecast, and diagnostics stages.
+3. Introduce dependency/environment metadata (`requirements.txt`, `pyproject.toml`, or equivalent).
+4. Formalize artifact lineage between scripts, inputs, and outputs.
+5. Add reproducible run commands or task automation.
+
+---
+
+## Important caveat
+
+This repo should still be treated as a **research / validation environment**. The structure is now cleaner, but production-readiness requires stronger reproducibility, test coverage, and operational conventions.

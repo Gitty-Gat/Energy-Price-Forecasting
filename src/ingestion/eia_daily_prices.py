@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 import sys
 import time
+from pathlib import Path
 from datetime import datetime, date
 from typing import List, Dict, Any, Optional
 
@@ -31,8 +32,8 @@ EIA_API_KEY: str = os.getenv("EIA_API_KEY", "WOmAqs44wWNIMHJYfQgA3ZYO8RqNt3DjCKn
 START_DATE: str = "2006-01-01"
 END_DATE: Optional[str] = None  # None -> through today
 
-NG_FILENAME: str = "natural_gas_prices.csv"
-CRUDE_FILENAME: str = "crude_oil_prices.csv"
+NG_FILENAME: str = "data/raw/prices/natural_gas_prices.csv"
+CRUDE_FILENAME: str = "data/raw/prices/crude_oil_prices.csv"
 
 ENABLE_SCHEDULER: bool = False
 SCHEDULE_TIME: str = "16:00"
@@ -225,6 +226,9 @@ def download_all() -> None:
     warn_if_truncated(crude_df, f"OIL {OL_PRODUCT}", end_date)
 
     # Save
+    Path(NG_FILENAME).parent.mkdir(parents=True, exist_ok=True)
+    Path(CRUDE_FILENAME).parent.mkdir(parents=True, exist_ok=True)
+
     ng_df.to_csv(NG_FILENAME, index=False)
     print(f"Saved natural gas data to {NG_FILENAME} ({len(ng_df)} rows).")
 

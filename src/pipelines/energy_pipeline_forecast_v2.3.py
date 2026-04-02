@@ -46,9 +46,9 @@ Key improvements over earlier versions:
 
 Example usage::
 
-    python energy_pipeline_forecast_v2.3.py \
-        --merged path/to/merged_exog.csv \
-        --outputs path/to/output_dir \
+    python src/pipelines/energy_pipeline_forecast_v2.3.py \
+        --merged data/processed/merged_exog.csv \
+        --outputs results/forecasts \
         --horizons 10 20 \
         --ng-col PRICE_NG \
         --ol-col PRICE_OL \
@@ -87,7 +87,7 @@ warnings.filterwarnings("ignore", message="A date index has been provided")
 warnings.filterwarnings("ignore", message="No supported index is available")
 warnings.filterwarnings("ignore", message="y is poorly scaled")
 
-_v22_filename = os.path.join(os.path.dirname(__file__), "energy_pipeline_forecast_v2.2.py")
+_v22_filename = os.path.join(os.path.dirname(__file__), "archive", "energy_pipeline_forecast_v2.2.py")
 _spec = importlib.util.spec_from_file_location("energy_pipeline_forecast_v2_2", _v22_filename)
 if _spec is None or _spec.loader is None:
     raise ImportError(f"Could not load specification for {_v22_filename}")

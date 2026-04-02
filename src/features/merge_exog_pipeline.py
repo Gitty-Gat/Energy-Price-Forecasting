@@ -13,32 +13,35 @@ such as moving averages and log returns.
 Usage
 -----
 
-The script can be run from the command line.  By default it looks for
-three input CSV files in the current working directory:
+The script can be run from the command line.  In the standardized repo
+layout it defaults to files under `data/raw/` and writes its merged table
+under `data/processed/`:
 
-* ``NG_prompt_month_futures_price.csv`` – must contain a date column
-  labelled ``Date`` and a price column labelled ``Price``.
-* ``Oil_prompt_month_futures_price.csv`` – same format as the NG file.
-* ``hdd_cdd_daily.csv`` – must contain ``date``, ``HDD`` and ``CDD``
-  columns representing Heating Degree Days and Cooling Degree Days.
+* ``data/raw/prices/NG_prompt_month_futures_price.csv`` – must contain a
+  date column labelled ``Date`` and a price column labelled ``Price``.
+* ``data/raw/prices/Oil_prompt_month_futures_price.csv`` – same format as
+  the NG file.
+* ``data/raw/weather/hdd_cdd_forecast.csv`` – HDD/CDD input.  This can be
+  either a daily HDD/CDD table or the CPC 7-day grid format handled by the
+  loader.
 
 An optional sentiment file may be supplied which should include a
 ``date`` column and two columns called ``sentiment_ng`` and
 ``sentiment_ol``.  These will override the NaN placeholders that the
 script populates when no sentiment data is provided.
 
-The merged output is written to ``merged_exog.csv`` by default.  All
-paths can be customised via command‑line arguments.  Use ``--help`` to
-see a full list of options.
+The merged output is written to ``data/processed/merged_exog.csv`` by
+default.  All paths can be customised via command‑line arguments.  Use
+``--help`` to see a full list of options.
 
 Example::
 
-    python merge_exog_pipeline.py \
-        --ng-path data/NG_prompt_month_futures_price.csv \
-        --ol-path data/Oil_prompt_month_futures_price.csv \
-        --hdd-cdd-path data/hdd_cdd_daily.csv \
-        --sentiment-path data/sentiment_exog.csv \
-        --output-path data/merged_exog.csv
+    python src/features/merge_exog_pipeline.py \
+        --ng-path data/raw/prices/NG_prompt_month_futures_price.csv \
+        --ol-path data/raw/prices/Oil_prompt_month_futures_price.csv \
+        --hdd-cdd-path data/raw/weather/hdd_cdd_forecast.csv \
+        --sentiment-path data/raw/sentiment/sentiment_exog.csv \
+        --output-path data/processed/merged_exog.csv
 
 Dependencies
 ------------
@@ -381,20 +384,20 @@ def main() -> None:
     parser.add_argument(
         "--ng-path",
         type=str,
-        default="data/NG_prompt_month_futures_price.csv",
-        help="Path to NG prompt‑month futures price CSV (default: data/NG_prompt_month_futures_price.csv)",
+        default="data/raw/prices/NG_prompt_month_futures_price.csv",
+        help="Path to NG prompt‑month futures price CSV (default: data/raw/prices/NG_prompt_month_futures_price.csv)",
     )
     parser.add_argument(
         "--ol-path",
         type=str,
-        default="data/Oil_prompt_month_futures_price.csv",
-        help="Path to Oil prompt‑month futures price CSV (default: data/Oil_prompt_month_futures_price.csv)",
+        default="data/raw/prices/Oil_prompt_month_futures_price.csv",
+        help="Path to Oil prompt‑month futures price CSV (default: data/raw/prices/Oil_prompt_month_futures_price.csv)",
     )
     parser.add_argument(
         "--hdd-cdd-path",
         type=str,
-        default="data/hdd_cdd_daily.csv",
-        help="Path to Heating/Cooling Degree Day CSV (default: data/hdd_cdd_daily.csv)",
+        default="data/raw/weather/hdd_cdd_forecast.csv",
+        help="Path to Heating/Cooling Degree Day CSV (default: data/raw/weather/hdd_cdd_forecast.csv)",
     )
     parser.add_argument(
         "--sentiment-path",
@@ -405,8 +408,8 @@ def main() -> None:
     parser.add_argument(
         "--output-path",
         type=str,
-        default="data/merged_exog.csv",
-        help="Output path for merged exogenous CSV (default: data/merged_exog.csv)",
+        default="data/processed/merged_exog.csv",
+        help="Output path for merged exogenous CSV (default: data/processed/merged_exog.csv)",
     )
     parser.add_argument(
         "--log-level",

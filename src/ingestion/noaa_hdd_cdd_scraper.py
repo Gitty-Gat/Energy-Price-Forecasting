@@ -18,8 +18,8 @@ Usage
 The script can be executed directly from the command line:
 
 ```
-python noaa_hdd_cdd_scraper.py --start-date 2025-10-20 --end-date 2025-10-23 \
-    --output hdd_cdd_forecast.csv
+python src/ingestion/noaa_hdd_cdd_scraper.py --start-date 2025-10-20 --end-date 2025-10-23 \
+    --output data/raw/weather/hdd_cdd_forecast.csv
 ```
 
 If no date range is supplied it defaults to a single run on today's date.

@@ -34,10 +34,10 @@ from typing import Dict, Optional
 
 import pandas as pd
 
-from . import data_ingestion
-from . import arimax
-from . import arimax_garch
-from . import vecm_garch
+from ..ingestion import data_ingestion
+from ..models import arimax
+from ..models import arimax_garch
+from ..models import vecm_garch
 
 
 @dataclass
