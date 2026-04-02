@@ -83,10 +83,10 @@ The repo is considered leveled up when all of the following are true:
 ## Later
 
 ### Phase 2 — Production/community ready
-- [ ] Add DVC and `dvc.yaml` stages for ingest → features → forecast → diagnostics → backtest.
+- [x] Add DVC and `dvc.yaml` stages for ingest → features → forecast → diagnostics → backtest.
 - [ ] Move large mutable data/results out of normal git tracking where appropriate.
-- [ ] Add GitHub Actions CI for lint, tests, docs build, and minimal smoke forecast.
-- [ ] Add `Dockerfile` and `.dockerignore`.
+- [x] Add GitHub Actions CI for lint, tests, docs build, and minimal smoke forecast.
+- [x] Add `Dockerfile` and `.dockerignore`.
 - [ ] Add MLflow experiment tracking.
 - [ ] Add MkDocs site and usage/modeling/data docs.
 - [ ] Add FastAPI app with health + forecast run endpoints.

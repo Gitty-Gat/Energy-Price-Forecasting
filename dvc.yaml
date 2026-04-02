@@ -1,0 +1,35 @@
+stages:
+  ingest:
+    cmd: python src/ingestion/data_ingestion.py
+    outs:
+      - data/raw
+
+  merge:
+    cmd: python src/features/merge_exog_pipeline.py
+    deps:
+      - data/raw
+      - src/features/merge_exog_pipeline.py
+    outs:
+      - data/processed/merged_exog.csv
+
+  forecast:
+    cmd: python src/pipelines/forecast.py --merged data/processed/merged_exog.csv --outputs results/forecasts --horizons 10 20 --seed 42
+    deps:
+      - data/processed/merged_exog.csv
+      - src/pipelines/forecast.py
+    outs:
+      - results/forecasts
+
+  diagnostics:
+    cmd: python src/diagnostics/energy_pipeline_diagnostics_v1.py
+    deps:
+      - results/forecasts
+    outs:
+      - results/diagnostics
+
+  backtest:
+    cmd: python src/diagnostics/backtest_runner.py
+    deps:
+      - results/forecasts
+    outs:
+      - results/backtests
