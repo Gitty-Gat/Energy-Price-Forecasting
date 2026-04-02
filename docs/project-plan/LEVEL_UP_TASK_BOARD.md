@@ -65,10 +65,10 @@ The repo is considered leveled up when all of the following are true:
 - [x] Add structured config/dataclass objects for data/model/backtest/runtime settings.
 - [x] Add `pandera` schemas for raw price, weather, sentiment, merged exog, forecasts, and backtests.
 - [x] Refactor fragile column detection into explicit schema-aware loaders.
-- [ ] Refactor `src/models/vecm_garch.py` to avoid mutable spec drift.
-- [ ] Make VECM lag/rank fallback explicit and logged, not silent mutation.
-- [ ] Verify and document forecast semantics for VECM outputs (levels vs differences).
-- [ ] Remove duplicate imports / cleanup global fallback state in modeling modules.
+- [x] Refactor `src/models/vecm_garch.py` to avoid mutable spec drift.
+- [x] Make VECM lag/rank fallback explicit and logged, not silent mutation.
+- [x] Verify and document forecast semantics for VECM outputs (levels vs differences).
+- [x] Remove duplicate imports / cleanup global fallback state in modeling modules.
 - [ ] Replace layout-only test coverage with real pytest suite and small fixtures.
 - [ ] Add tests for ingestion, merging, schema validation, ARIMAX smoke, VECM smoke, and deterministic seeding.
 
