@@ -145,7 +145,7 @@ When the automation session runs, it should:
 ## Blocked
 
 - 2026-04-02: `git push` from this environment is not currently safe/available because the configured GitHub SSH credentials are missing (`Permission denied (publickey)`), so even completed local slices may remain unpushed until remote auth is configured. Re-confirmed after local commits `00c02ec`, `ada3403`, `3f2ac62`, `7bcf23d`, `d229641`, and `2d48b1c`.
-- 2026-04-02: Python-based local verification commands in this session still require interactive approvals; commit completed, but focused smoke/pytest verification remains pending approval.
+- 2026-04-02: The focused verification command for the new test slice ran but failed because the environment does not currently have `pytest` installed: `/usr/bin/python3: No module named pytest`. Until the dev dependencies from `pyproject.toml`/`requirements.txt` are installed, the ingestion/merge/schema/model smoke test slice cannot be verified or committed responsibly.
 
 ---
 
