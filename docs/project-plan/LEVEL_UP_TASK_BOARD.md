@@ -144,7 +144,7 @@ When the automation session runs, it should:
 
 ## Blocked
 
-- 2026-04-02: `git push` from this environment is not currently safe/available because the configured GitHub SSH credentials are missing (`Permission denied (publickey)`), so even completed local slices may remain unpushed until remote auth is configured. Re-confirmed after local commit `00c02ec`.
+- 2026-04-02: `git push` from this environment is not currently safe/available because the configured GitHub SSH credentials are missing (`Permission denied (publickey)`), so even completed local slices may remain unpushed until remote auth is configured. Re-confirmed after local commits `00c02ec`, `ada3403`, `3f2ac62`, `7bcf23d`, `d229641`, and `2d48b1c`.
 - 2026-04-02: Python-based local verification commands in this session still require interactive approvals; commit completed, but focused smoke/pytest verification remains pending approval.
 
 ---
