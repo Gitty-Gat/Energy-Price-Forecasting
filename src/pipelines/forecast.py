@@ -15,6 +15,11 @@ from statsmodels.tsa.statespace.sarimax import SARIMAX
 from src.models.vecm_garch import VECMGARCHHybrid
 from src.validation.schemas import forecast_schema, merged_exog_schema
 
+try:
+    from src.tracking.mlflow_logger import log_forecast_run
+except Exception:  # pragma: no cover
+    log_forecast_run = None
+
 
 @dataclass
 class ForecastConfig:
@@ -151,6 +156,11 @@ def run_forecast(config: ForecastConfig) -> None:
         "rows_used": int(len(df)),
     }
     (out_dir / "run_metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+    if log_forecast_run is not None:
+        try:
+            log_forecast_run(config, metadata)
+        except Exception:
+            pass
 
     for h in config.horizons:
         exog_future = _future_exog(exog.tail(1), h, freq)

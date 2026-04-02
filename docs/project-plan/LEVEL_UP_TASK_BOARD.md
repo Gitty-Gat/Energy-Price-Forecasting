@@ -87,9 +87,9 @@ The repo is considered leveled up when all of the following are true:
 - [ ] Move large mutable data/results out of normal git tracking where appropriate.
 - [x] Add GitHub Actions CI for lint, tests, docs build, and minimal smoke forecast.
 - [x] Add `Dockerfile` and `.dockerignore`.
-- [ ] Add MLflow experiment tracking.
-- [ ] Add MkDocs site and usage/modeling/data docs.
-- [ ] Add FastAPI app with health + forecast run endpoints.
+- [x] Add MLflow experiment tracking.
+- [x] Add MkDocs site and usage/modeling/data docs.
+- [x] Add FastAPI app with health + forecast run endpoints.
 
 ### Exit criteria for Phase 2
 - [ ] `dvc repro` works.
