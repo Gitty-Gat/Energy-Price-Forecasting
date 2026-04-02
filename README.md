@@ -13,7 +13,7 @@ The repository has been **standardized for structure and auditability**. It alre
 
 ## Current status
 
-**Status:** validated research pipeline, standardized repository layout, still pre-production.
+**Status:** validated research pipeline with a canonical runnable forecast entrypoint, still pre-production.
 
 What is already present:
 - raw and processed data artifacts
@@ -24,9 +24,7 @@ What is already present:
 - audit and structure documentation
 
 What is still incomplete:
-- one formally designated canonical production entrypoint
 - robust automated test coverage beyond smoke/layout checks
-- locked environment / packaging metadata
 - explicit artifact lineage enforcement across all historical runs
 - deployment / scheduling conventions for production operation
 
@@ -150,15 +148,43 @@ Relevant code and outputs:
 
 ---
 
+## Fresh install + canonical forecast run
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Canonical forecast command:
+
+```bash
+python src/pipelines/forecast.py \
+  --merged data/processed/merged_exog.csv \
+  --outputs results/forecasts \
+  --horizons 10 20 \
+  --seed 42
+```
+
+Hydra-configured equivalent:
+
+```bash
+python src/pipelines/forecast_hydra.py
+```
+
+Config lives in `conf/forecast.yaml`.
+
+This writes forecast CSV outputs and `results/forecasts/run_metadata.json` including timestamp, git hash, seed, and run config.
+
 ## Canonical workflow narrative
 
-There are still multiple historical pipeline generations, but the clearest current operational path is:
+There are still multiple historical pipeline generations, but the canonical operational path is now:
 
 ```text
 raw inputs
 → src/features/merge_exog_pipeline.py
 → data/processed/merged_exog.csv
-→ src/pipelines/energy_pipeline_forecast_v2.3.py
+→ src/pipelines/forecast.py
 → results/forecasts/
 → src/diagnostics/...
 → results/diagnostics/ and results/backtests/
@@ -185,8 +211,9 @@ raw inputs
 - `src/models/vecm_garch.py`
 
 ## Pipelines
+- `src/pipelines/forecast.py` (canonical)
 - `src/pipelines/forecasting_pipeline.py`
-- `src/pipelines/energy_pipeline_forecast_v2.3.py`
+- `src/pipelines/energy_pipeline_forecast_v2.3.py` (wrapper)
 - `src/pipelines/archive/` for historical driver versions
 
 ## Diagnostics / evaluation

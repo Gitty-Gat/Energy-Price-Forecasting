@@ -1,0 +1,7 @@
+merged: data/processed/merged_exog.csv
+outputs: results/forecasts
+horizons: [10, 20]
+ng_col: PRICE_NG
+ol_col: PRICE_OL
+with_hybrid: false
+seed: 42

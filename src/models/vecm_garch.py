@@ -154,7 +154,8 @@ class VECMGARCHHybrid:
         garch_p: int = 1,
         garch_q: int = 1,
         garch_dist: str = 'normal',
-        use_garch: bool = False
+        use_garch: bool = False,
+        seed: int = 42,
     ):
         self.vecm_lags = vecm_lags
         self.coint_rank = coint_rank
@@ -163,6 +164,7 @@ class VECMGARCHHybrid:
         self.garch_dist = garch_dist
         self._fitted = False
         self.use_garch = use_garch
+        self.seed = seed
 
     def fit(self, data: pd.DataFrame, price_cols: Iterable[str] = ('ng', 'ol')) -> None:
         """
@@ -198,7 +200,8 @@ class VECMGARCHHybrid:
             vecm_res = vecm_model.fit()
         except LinAlgError:
             # Retry 1: tiny jitter to avoid singular matrices
-            jittered = log_prices + np.random.normal(scale=1e-8, size=log_prices.shape)
+            rng = np.random.default_rng(self.seed)
+            jittered = log_prices + rng.normal(scale=1e-8, size=log_prices.shape)
             vecm_model = VECM(
                 jittered,
                 k_ar_diff=self.vecm_lags,
