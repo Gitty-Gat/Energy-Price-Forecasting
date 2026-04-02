@@ -69,7 +69,7 @@ The repo is considered leveled up when all of the following are true:
 - [x] Make VECM lag/rank fallback explicit and logged, not silent mutation.
 - [x] Verify and document forecast semantics for VECM outputs (levels vs differences).
 - [x] Remove duplicate imports / cleanup global fallback state in modeling modules.
-- [ ] Replace layout-only test coverage with real pytest suite and small fixtures.
+- [x] Replace layout-only test coverage with real pytest suite and small fixtures.
 - [ ] Add tests for ingestion, merging, schema validation, ARIMAX smoke, VECM smoke, and deterministic seeding.
 
 ### Exit criteria for Phase 1
