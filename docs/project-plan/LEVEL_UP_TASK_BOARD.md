@@ -114,21 +114,27 @@ The repo is considered leveled up when all of the following are true:
 
 ## Active focus order
 
-1. finish focused ingestion / merge / schema / model smoke coverage and verify it cleanly
-2. close Phase 1 exit criteria with fixture-sized verification and schema-failure checks
-3. validate Phase 2 exit criteria already scaffolded (DVC / CI / Docker / docs / API boot)
-4. remove any remaining large mutable tracked artifacts and align them with DVC / ignore policy
-5. defer Phase 3 benchmark/community work until Phases 1-2 are actually verified
+1. unblock local verification for the already-in-progress Phase 1 test slice
+2. finish focused ingestion / merge / schema / model smoke coverage and verify it cleanly
+3. close Phase 1 exit criteria with fixture-sized verification and schema-failure checks
+4. validate Phase 2 exit criteria already scaffolded (DVC / CI / Docker / docs / API boot)
+5. remove any remaining large mutable tracked artifacts and align them with DVC / ignore policy
+6. defer Phase 3 benchmark/community work until Phases 1-2 are actually verified
 
 ## Immediate next slices
 
-1. **Verify and commit `tests/test_forecasting_stack.py`**
+1. **Unblock Python verification for the current working-tree test slice**
+   - The repo already has an in-progress implementation in `tests/test_forecasting_stack.py`.
+   - Before doing any new implementation, make a local Python runtime available that can import the repo scientific stack (`numpy`, `pandas`, `pandera`, `statsmodels`, `arch`).
+   - If the session requires approval for Python execution, get that approval first rather than starting a different roadmap item.
+2. **Verify and commit `tests/test_forecasting_stack.py`**
    - Run: `python3 -m unittest discover -s tests -p 'test_forecasting_stack.py' -q`
    - If green: commit the focused test slice and mark the remaining Phase 1 test item done.
-2. **Make fixture-sized local verification repeatable**
+   - If still blocked by missing dependencies, update the blocker with the exact missing module / environment detail and stop.
+3. **Make fixture-sized local verification repeatable**
    - Either install/enable `pytest` in the dev environment, or keep the constrained-session `unittest` fallback documented while CI remains the authoritative `pytest` runner.
    - Then verify `tests/test_forecast_pipeline.py` plus `tests/test_forecasting_stack.py` together.
-3. **Reconcile Phase 2 verification vs scaffolding**
+4. **Reconcile Phase 2 verification vs scaffolding**
    - Run the smallest checks for `dvc repro` shape, Docker build, docs build, and API boot.
    - Only after those checks, mark the corresponding exit criteria complete.
 
@@ -153,14 +159,18 @@ When the automation session runs, it should:
 ## Dependency / environment notes
 
 - The repo metadata expects a richer dev environment than this automation session currently has on PATH.
-- `pytest` is not installed in the current session runtime, even though test coverage work now depends on it conceptually and CI is expected to run it.
-- `python3` is available and can run stdlib `unittest`, which is the current constrained-session fallback for focused verification.
+- The current session runtime is missing project Python dependencies needed even for stdlib-driven focused verification (`numpy` was missing when loading `tests/test_forecasting_stack.py`).
+- `pytest` is also not installed in the current session runtime, so both the preferred `pytest` path and the constrained-session `unittest` fallback are blocked until dependencies are installed.
+- `python3` is available, but the interpreter environment is too minimal to import the repo's scientific stack.
+- The top remaining Phase 1 roadmap item appears to already be implemented in the working tree; the gap is verification and commitability, not fresh test authoring.
+- Delegates should not start a different implementation slice while `tests/test_forecasting_stack.py` remains the top-priority dirty working-tree change.
 - GitHub SSH push credentials are not configured in this environment, so local commits may accumulate without a successful push.
 
 ## Blocked
 
 - 2026-04-02: `git push` from this environment is not currently safe/available because the configured GitHub SSH credentials are missing (`Permission denied (publickey)`). Local commits can still be created, but remote sync cannot be assumed until SSH auth is configured.
-- 2026-04-02: The focused ingestion/merge/schema/model smoke test slice is still in progress in the working tree (`tests/test_forecasting_stack.py`). The current pending verification command is `python3 -m unittest discover -s tests -p 'test_forecasting_stack.py' -q` (latest approval id `ecfb0eeb`; earlier pending ids may be stale). Until that verification runs green, this slice should not be committed.
+- 2026-04-02: The focused ingestion/merge/schema/model smoke test slice is still in progress in the working tree (`tests/test_forecasting_stack.py`). Focused verification was attempted with `python3 -m unittest discover -s tests -p 'test_forecasting_stack.py' -q`, but the runtime could not import project dependencies (`ModuleNotFoundError: No module named 'numpy'`). Until the local Python environment has the repo dependencies installed, this slice should not be committed, and delegates should not skip ahead to later roadmap items from the same working tree.
+- 2026-04-07: A follow-up deep-work attempt stayed on the same top-priority slice and tried to inspect the current Python environment before re-running focused verification, but executing the needed gateway-side Python checks is approval-gated in this session. Until Python execution is approved here (or the project scientific stack is pre-provisioned in the local runtime), the delegate cannot verify `tests/test_forecasting_stack.py` and should stop rather than skipping ahead in the roadmap.
 
 ---
 
