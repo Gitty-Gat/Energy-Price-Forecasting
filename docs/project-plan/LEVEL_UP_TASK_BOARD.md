@@ -114,18 +114,17 @@ The repo is considered leveled up when all of the following are true:
 
 ## Active focus order
 
-1. verify CI status from a real run, not workflow files alone
-2. defer Phase 3 benchmark/community work until Phases 1-2 are actually verified
+1. obtain or inspect actual GitHub Actions run evidence once repo push/auth is available
+2. defer Phase 3 benchmark/community work until Phase 2 CI evidence is actually verified
 
 ## Immediate next slices
 
-1. **Verify CI status from real evidence**
-   - Run the smallest honest CI-equivalent checks available in this environment, or inspect actual workflow run evidence if accessible.
-   - Do not mark CI green from workflow files existing alone.
+1. **Obtain actual GitHub Actions run evidence**
+   - The local CI-equivalent workflow now passes in a fresh temporary virtualenv, but `CI is green` should remain unchecked until an actual workflow run can be inspected after push/auth is available.
 2. **Keep mutable artifacts out of Git**
    - Preserve the new ignore/index behavior for `data/processed/` and `results/`; do not re-add generated outputs to SCM while DVC stages own them.
 3. **Phase 3 only after Phase 2 evidence is complete**
-   - Benchmark/community work stays lower priority until CI evidence exists.
+   - Benchmark/community work stays lower priority until actual CI evidence exists.
 
 ---
 
@@ -168,12 +167,14 @@ When the automation session runs, it should:
 - The diagnostics stage is now driven by `src/diagnostics/canonical_diagnostics.py`, which consumes the canonical `forecast_returns_h*.csv` outputs and writes summary/plot artifacts into `results/diagnostics`.
 - The backtest stage now runs from the modern repo layout using canonical prompt-month loaders, repo-local defaults, and generated outputs under `results/backtests/`.
 - Full `. .venv/bin/activate && dvc repro` now succeeds end-to-end in this environment.
+- A fresh local CI-equivalent run (`python3 -m venv <tmp>/ci-venv && . <tmp>/ci-venv/bin/activate && pip install -r requirements.txt && pytest -q && test -f README.md`) now passes after adding `pytest` to `requirements.txt`.
 - `data/processed/ingestion_manifest.json` is intentionally ignored by git as a generated DVC output.
 - `pytest` is still not available on the bare system interpreter, so CI remains the authoritative `pytest` runner while constrained local automation can use the `unittest` fallback.
 - GitHub SSH push credentials are not configured in this environment, so local commits may accumulate without a successful push.
 
 ## Blocked
 
+- 2026-04-08 09:28 America/Chicago: A fresh local CI-equivalent run now passes in a temporary virtualenv after adding `pytest` to `requirements.txt`, but actual GitHub Actions evidence still cannot be inspected from this environment because `gh` is unavailable/unauthenticated and `git push` is not currently safe/available here. Keep `CI is green` unchecked until a real workflow run can be observed.
 - 2026-04-02: `git push` from this environment is not currently safe/available because the configured GitHub SSH credentials are missing (`Permission denied (publickey)`). Local commits can still be created, but remote sync cannot be assumed until SSH auth is configured.
 
 ---
