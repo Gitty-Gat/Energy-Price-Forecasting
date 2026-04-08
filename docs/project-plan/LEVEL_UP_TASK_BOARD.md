@@ -95,7 +95,7 @@ The repo is considered leveled up when all of the following are true:
 - [ ] `dvc repro` works.
 - [ ] CI is green.
 - [x] Docker build succeeds.
-- [ ] MLflow run logging works.
+- [x] MLflow run logging works.
 - [x] docs site builds.
 - [x] API boots locally.
 
@@ -114,19 +114,20 @@ The repo is considered leveled up when all of the following are true:
 
 ## Active focus order
 
-1. verify DVC / MLflow behavior now that docs, API, and Docker all have real verification evidence
-2. remove remaining large mutable tracked artifacts and align them with DVC / ignore policy
+1. resolve the remaining DVC metadata blocker and align mutable artifact ownership with that decision
+2. verify CI status only after the remaining repo-state blockers are resolved
 3. defer Phase 3 benchmark/community work until Phases 1-2 are actually verified
 
 ## Immediate next slices
 
-1. **Verify DVC / MLflow after runtime checks**
-   - Use the existing local data/results footprint to test `dvc repro` shape and a minimal MLflow-backed forecast run.
-   - If these checks are confounded by tracked mutable outputs, record that in the board before changing storage policy.
+1. **Resolve the DVC metadata blocker before claiming DVC stage operability**
+   - Restore or initialize the missing `.dvc/` repository metadata (and any required `.dvcignore` / lockfile behavior) before retrying `dvc repro`.
+   - If the intended direction is to remove DVC claims instead, record that decision explicitly before more infra work.
 2. **Normalize mutable artifact ownership**
    - Decide which large data/results belong in git vs DVC/LFS and update ignore/tracking policy accordingly.
-3. **Keep the verification matrix current**
-   - Record the exact DVC / MLflow commands and outcomes before marking those criteria complete.
+   - This likely pairs naturally with the DVC metadata decision.
+3. **Verify CI status only after repo-state blockers are settled**
+   - Do not mark CI green from configuration alone; use an actual successful run or record the missing evidence precisely.
 
 ---
 
@@ -159,6 +160,8 @@ When the automation session runs, it should:
 - API boot is now locally verified via a stdlib `unittest` that starts `uvicorn`, probes `/health` and `/forecast/run`, and terminates cleanly.
 - `fastapi.testclient` is not currently usable in this environment because `httpx` is not installed; local API verification therefore uses the `uvicorn` + stdlib HTTP path instead.
 - `docker build -t energy-price-forecasting:test .` now succeeds against the current `Dockerfile` in this environment.
+- MLflow run logging is now locally verified through the canonical forecast path via `. .venv/bin/activate && python -m unittest tests.test_mlflow_logging -q`.
+- `mlflow==2.15.1` currently depends on `pkg_resources`, so this repo now constrains `setuptools` to `<81` to keep local MLflow imports working reproducibly.
 - The repository currently contains real `data/raw`, `data/processed`, and `results/` contents, so `dvc repro` and storage-policy work are likely feasible but entangled with tracked mutable artifacts.
 - Despite `dvc.yaml` existing, the repository is not currently initialized as a DVC repository (`.dvc/` metadata is missing), so `dvc repro` is hard-blocked until that metadata is restored or created.
 - `pytest` is still not available on the bare system interpreter, so CI remains the authoritative `pytest` runner while constrained local automation can use the `unittest` fallback.
