@@ -122,7 +122,8 @@ The repo is considered leveled up when all of the following are true:
 1. **Obtain actual GitHub Actions run evidence**
    - The local CI-equivalent workflow now passes in a fresh temporary virtualenv, but `CI is green` should remain unchecked until an actual workflow run can be inspected after push/auth is available.
 2. **Keep mutable artifacts out of Git**
-   - Preserve the new ignore/index behavior for `data/processed/` and `results/`; do not re-add generated outputs to SCM while DVC stages own them.
+   - Follow `docs/project-plan/DATA_POLICY.md` as the source of truth for Git-vs-DVC ownership.
+   - Do not re-add generated `data/processed/` or `results/` outputs to SCM while DVC stages own them.
 3. **Phase 3 only after Phase 2 evidence is complete**
    - Benchmark/community work stays lower priority until actual CI evidence exists.
 
@@ -168,6 +169,7 @@ When the automation session runs, it should:
 - The backtest stage now runs from the modern repo layout using canonical prompt-month loaders, repo-local defaults, and generated outputs under `results/backtests/`.
 - Full `. .venv/bin/activate && dvc repro` now succeeds end-to-end in this environment.
 - A fresh local CI-equivalent run (`python3 -m venv <tmp>/ci-venv && . <tmp>/ci-venv/bin/activate && pip install -r requirements.txt && pytest -q && test -f README.md`) now passes after adding `pytest` to `requirements.txt`.
+- `docs/project-plan/DATA_POLICY.md` now documents the current ownership split: Git owns `data/raw/` and `data/reference/`, while generated `data/processed/` and `results/` outputs stay out of normal Git tracking.
 - `data/processed/ingestion_manifest.json` is intentionally ignored by git as a generated DVC output.
 - `pytest` is still not available on the bare system interpreter, so CI remains the authoritative `pytest` runner while constrained local automation can use the `unittest` fallback.
 - GitHub SSH push credentials are not configured in this environment, so local commits may accumulate without a successful push.

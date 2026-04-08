@@ -71,6 +71,6 @@ Commit only when the slice leaves the repo more truthful than before. Push after
 
 ## Immediate next slices
 1. Obtain actual GitHub Actions run evidence once push/auth is available; local CI-equivalent evidence now exists but should not be overclaimed as CI green.
-2. Add `docs/project-plan/DATA_POLICY.md` to resolve any remaining git-vs-DVC artifact ownership tension.
+2. Keep `docs/project-plan/DATA_POLICY.md` aligned with the actual Git-vs-DVC ownership boundary if that policy changes.
 3. Keep `docs/project-plan/VERIFICATION_MATRIX.md` in sync with every newly verified capability.
 4. Defer Phase 3 benchmark/community work until CI evidence exists.
