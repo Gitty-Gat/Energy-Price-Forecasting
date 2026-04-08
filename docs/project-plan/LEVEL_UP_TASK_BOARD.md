@@ -114,15 +114,15 @@ The repo is considered leveled up when all of the following are true:
 
 ## Active focus order
 
-1. make the DVC forecast stage compatible with the merged union calendar / schema expectations
+1. make the DVC diagnostics stage callable from `dvc.yaml`
 2. verify CI status only after the remaining repo-state blockers are resolved
 3. defer Phase 3 benchmark/community work until Phases 1-2 are actually verified
 
 ## Immediate next slices
 
-1. **Make the DVC forecast stage honest**
-   - `dvc repro` now passes ingest and merge, then fails in `src/pipelines/forecast.py` because `merged_exog_schema` rejects null `PRICE_NG` / `PRICE_OL` rows in the union-calendar merged file.
-   - Decide whether the canonical fix is to filter future/null price rows before schema validation in forecast loading, or to narrow the merge output handed to forecast.
+1. **Make the DVC diagnostics stage callable**
+   - `dvc repro` now passes ingest, merge, and forecast, then fails because `src/diagnostics/energy_pipeline_diagnostics_v1.py` requires `--results_dir` but `dvc.yaml` invokes it without arguments.
+   - Fix the stage command or add sensible script defaults before moving on to backtest/CI claims.
 2. **Verify CI status only after repo-state blockers are settled**
    - Do not mark CI green from configuration alone; use an actual successful run or record the missing evidence precisely.
 3. **Keep mutable artifacts out of Git**
@@ -165,13 +165,14 @@ When the automation session runs, it should:
 - This repo now pins `pathspec<1` because `dvc==3.56.0` imports the private `pathspec.patterns.gitwildmatch._DIR_MARK` symbol during `dvc init`.
 - After pinning `pathspec<1`, `dvc init` now succeeds and the repository has real `.dvc/` metadata.
 - The ingest stage is now honest: `python src/ingestion/data_ingestion.py --raw-root data/raw --output-path data/processed/ingestion_manifest.json` validates the expected raw inputs and writes a deterministic manifest tracked by DVC.
+- The forecast stage now treats the union-calendar merged file honestly: it validates only historical priced rows, preserves future exogenous rows separately, and uses those future exogenous values when building forecast horizons.
 - `data/processed/ingestion_manifest.json` is intentionally ignored by git as a generated DVC output.
 - `pytest` is still not available on the bare system interpreter, so CI remains the authoritative `pytest` runner while constrained local automation can use the `unittest` fallback.
 - GitHub SSH push credentials are not configured in this environment, so local commits may accumulate without a successful push.
 
 ## Blocked
 
-- 2026-04-08 07:28 America/Chicago: After untracking generated `data/processed/` and `results/` artifacts from Git so DVC could own those outputs, re-ran `. .venv/bin/activate && dvc repro`. DVC now completes `ingest` and `merge`, but fails in the `forecast` stage because `src/pipelines/forecast.py` validates the union-calendar `data/processed/merged_exog.csv` against `merged_exog_schema`, which rejects the null `PRICE_NG` / `PRICE_OL` rows that represent future forecast dates. `dvc repro` is therefore blocked by a forecast-loading/schema contract mismatch, not by DVC wiring or SCM tracking anymore.
+- 2026-04-08 07:58 America/Chicago: Re-ran `. .venv/bin/activate && dvc repro` after teaching `src/pipelines/forecast.py` to split historical priced rows from future exogenous rows in the union-calendar merged file. DVC now completes `ingest`, `merge`, and `forecast`, updates `dvc.lock`, and then fails in `diagnostics` because `src/diagnostics/energy_pipeline_diagnostics_v1.py` requires `--results_dir` while the `dvc.yaml` stage still invokes it as bare `python src/diagnostics/energy_pipeline_diagnostics_v1.py`. The current blocker is now a diagnostics-stage CLI contract mismatch, not forecast loading.
 - 2026-04-02: `git push` from this environment is not currently safe/available because the configured GitHub SSH credentials are missing (`Permission denied (publickey)`). Local commits can still be created, but remote sync cannot be assumed until SSH auth is configured.
 
 ---

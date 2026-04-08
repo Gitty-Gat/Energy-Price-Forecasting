@@ -66,14 +66,20 @@ def load_and_clean_merged(
     merged_path: Path,
     ng_col: str,
     ol_col: str,
-) -> tuple[pd.DataFrame, pd.Series, pd.Series, pd.DataFrame, Optional[pd.offsets.BaseOffset]]:
+) -> tuple[
+    pd.DataFrame,
+    pd.Series,
+    pd.Series,
+    pd.DataFrame,
+    pd.DataFrame,
+    Optional[pd.offsets.BaseOffset],
+]:
     raw = pd.read_csv(merged_path)
     if raw.empty:
         raise ValueError(f"Merged dataset at {merged_path} is empty")
 
     date_col = next((c for c in raw.columns if str(c).strip().lower() in {"date", "datetime", "timestamp"}), raw.columns[0])
     raw = raw.rename(columns={date_col: "date"})
-    merged_exog_schema.validate(raw, lazy=True)
     raw["date"] = pd.to_datetime(raw["date"], errors="coerce")
     raw = raw.dropna(subset=["date"]).sort_values("date").set_index("date")
 
@@ -81,20 +87,40 @@ def load_and_clean_merged(
     if ng_col not in df.columns or ol_col not in df.columns:
         raise KeyError(f"Missing required columns: {ng_col}, {ol_col}")
 
-    df = df[(df[ng_col] > 0) & (df[ol_col] > 0)].copy()
-    df["ng_return"] = np.log(df[ng_col]).diff()
-    df["ol_return"] = np.log(df[ol_col]).diff()
-    df = df.dropna(subset=["ng_return", "ol_return"])
+    historical_mask = df[ng_col].notna() & df[ol_col].notna()
+    historical = df.loc[historical_mask].copy()
+    if historical.empty:
+        raise ValueError(f"Merged dataset at {merged_path} has no historical rows with both {ng_col} and {ol_col}")
 
-    exog_cols = [c for c in df.columns if c not in {ng_col, ol_col, "ng_return", "ol_return"}]
-    exog = df[exog_cols].copy().ffill().bfill().fillna(0.0).astype(float)
+    merged_exog_schema.validate(historical.reset_index(), lazy=True)
+    historical = historical[(historical[ng_col] > 0) & (historical[ol_col] > 0)].copy()
 
-    ng_returns = df["ng_return"].astype(float)
-    ol_returns = df["ol_return"].astype(float)
+    historical["ng_return"] = np.log(historical[ng_col]).diff()
+    historical["ol_return"] = np.log(historical[ol_col]).diff()
+    historical = historical.dropna(subset=["ng_return", "ol_return"])
+
+    exog_cols = [c for c in historical.columns if c not in {ng_col, ol_col, "ng_return", "ol_return"}]
+    exog = historical[exog_cols].copy().ffill().bfill().fillna(0.0).astype(float)
+
+    future_rows = df.loc[~historical_mask, exog_cols].copy() if exog_cols else pd.DataFrame(index=df.index[~historical_mask])
+    if not future_rows.empty:
+        future_exog = (
+            pd.concat([exog.tail(1), future_rows], axis=0)
+            .ffill()
+            .bfill()
+            .iloc[1:]
+            .fillna(0.0)
+            .astype(float)
+        )
+    else:
+        future_exog = pd.DataFrame(columns=exog.columns)
+
+    ng_returns = historical["ng_return"].astype(float)
+    ol_returns = historical["ol_return"].astype(float)
 
     freq = None
-    if isinstance(df.index, pd.DatetimeIndex):
-        freq_str = df.index.inferred_freq
+    if isinstance(historical.index, pd.DatetimeIndex):
+        freq_str = historical.index.inferred_freq
         if freq_str:
             try:
                 freq = pd.tseries.frequencies.to_offset(freq_str)  # type: ignore[attr-defined]
@@ -106,17 +132,33 @@ def load_and_clean_merged(
             except Exception:
                 freq = None
 
-    return df, ng_returns, ol_returns, exog, freq
+    return historical, ng_returns, ol_returns, exog, future_exog, freq
 
 
-def _future_exog(last_exog: pd.DataFrame, horizon: int, freq: Optional[pd.offsets.BaseOffset]) -> pd.DataFrame:
-    if freq is not None:
-        start = last_exog.index[0] + freq
+def _future_exog(
+    last_exog: pd.DataFrame,
+    horizon: int,
+    freq: Optional[pd.offsets.BaseOffset],
+    future_exog_source: Optional[pd.DataFrame] = None,
+) -> pd.DataFrame:
+    if future_exog_source is not None and not future_exog_source.empty:
+        future = future_exog_source.reindex(columns=last_exog.columns).copy().fillna(0.0).astype(float)
+        if len(future) >= horizon:
+            return future.iloc[:horizon].copy()
+
+        seed = future.tail(1) if not future.empty else last_exog.tail(1)
+        remaining = horizon - len(future)
+        tail = _future_exog(seed, remaining, freq, future_exog_source=None)
+        return pd.concat([future, tail], axis=0)
+
+    if freq is not None and isinstance(last_exog.index, pd.DatetimeIndex):
+        start = last_exog.index[-1] + freq
         idx = pd.date_range(start=start, periods=horizon, freq=freq)
     else:
         idx = pd.RangeIndex(start=0, stop=horizon)
-    vals = np.tile(last_exog.values[0], (horizon, 1))
+    vals = np.tile(last_exog.iloc[-1].values, (horizon, 1))
     return pd.DataFrame(vals, index=idx, columns=last_exog.columns).fillna(0.0).astype(float)
+
 
 
 def _forecast_sarimax(y: pd.Series, exog: pd.DataFrame, exog_future: pd.DataFrame, order: tuple[int, int, int], prefix: str) -> pd.DataFrame:
@@ -147,7 +189,7 @@ def run_forecast(config: ForecastConfig) -> None:
     out_dir = Path(config.outputs)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    df, ng_returns, ol_returns, exog, freq = load_and_clean_merged(
+    df, ng_returns, ol_returns, exog, future_exog, freq = load_and_clean_merged(
         merged_path=merged_path,
         ng_col=config.ng_col,
         ol_col=config.ol_col,
@@ -169,7 +211,7 @@ def run_forecast(config: ForecastConfig) -> None:
             pass
 
     for h in config.horizons:
-        exog_future = _future_exog(exog.tail(1), h, freq)
+        exog_future = _future_exog(exog.tail(1), h, freq, future_exog_source=future_exog)
         ng_fc = _forecast_sarimax(ng_returns, exog, exog_future, config.ng_order, "ng")
         ol_fc = _forecast_sarimax(ol_returns, exog, exog_future, config.ol_order, "ol")
         combined = pd.concat([ng_fc, ol_fc], axis=1)

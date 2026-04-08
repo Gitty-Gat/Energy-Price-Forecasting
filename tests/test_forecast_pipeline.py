@@ -38,12 +38,65 @@ class TestForecastPipeline(unittest.TestCase):
             merged = Path(tmpdir) / "merged.csv"
             _make_merged_csv(merged)
 
-            df, ng_r, ol_r, exog, freq = load_and_clean_merged(merged, "PRICE_NG", "PRICE_OL")
+            df, ng_r, ol_r, exog, future_exog, freq = load_and_clean_merged(merged, "PRICE_NG", "PRICE_OL")
 
             self.assertFalse(df.empty)
             self.assertEqual(len(ng_r), len(ol_r))
             self.assertFalse(exog.isna().any().any())
+            self.assertTrue(future_exog.empty)
             self.assertIsNotNone(freq)
+
+    def test_load_and_run_forecast_with_future_exog_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            merged = Path(tmpdir) / "merged_future.csv"
+            out = Path(tmpdir) / "out_future"
+            rng = np.random.default_rng(123)
+            dates = pd.date_range("2024-01-01", periods=12, freq="D")
+            df = pd.DataFrame(
+                {
+                    "date": dates,
+                    "PRICE_NG": np.exp(np.cumsum(rng.normal(0.0, 0.01, size=12))) * 2.5,
+                    "PRICE_OL": np.exp(np.cumsum(rng.normal(0.0, 0.008, size=12))) * 75.0,
+                    "HDD": np.linspace(15.0, 5.0, 12),
+                    "CDD": np.linspace(1.0, 4.0, 12),
+                }
+            )
+            future = pd.DataFrame(
+                {
+                    "date": pd.date_range(dates[-1] + pd.Timedelta(days=1), periods=3, freq="D"),
+                    "PRICE_NG": [np.nan, np.nan, np.nan],
+                    "PRICE_OL": [np.nan, np.nan, np.nan],
+                    "HDD": [2.0, 3.0, 4.0],
+                    "CDD": [5.0, 6.0, 7.0],
+                }
+            )
+            merged_df = pd.concat([df, future], ignore_index=True)
+            merged_df.to_csv(merged, index=False)
+
+            cleaned, ng_r, ol_r, exog, future_exog, freq = load_and_clean_merged(merged, "PRICE_NG", "PRICE_OL")
+
+            self.assertEqual(len(cleaned), 11)
+            self.assertEqual(len(ng_r), 11)
+            self.assertEqual(len(future_exog), 3)
+            self.assertEqual(list(future_exog["HDD"]), [2.0, 3.0, 4.0])
+            self.assertEqual(list(future_exog["CDD"]), [5.0, 6.0, 7.0])
+            self.assertIsNotNone(freq)
+
+            run_forecast(
+                ForecastConfig(
+                    merged=str(merged),
+                    outputs=str(out),
+                    horizons=[3],
+                    seed=5,
+                    with_hybrid=False,
+                )
+            )
+
+            out_csv = out / "forecast_returns_h3.csv"
+            meta = json.loads((out / "run_metadata.json").read_text(encoding="utf-8"))
+            self.assertTrue(out_csv.exists())
+            self.assertEqual(len(pd.read_csv(out_csv)), 3)
+            self.assertEqual(meta["rows_used"], 11)
 
     def test_run_forecast_writes_outputs_and_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

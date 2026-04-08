@@ -39,3 +39,22 @@ stages:
       hash: md5
       md5: 1dcd258dd0a7ceec3cd977030e2157cd
       size: 439120
+  forecast:
+    cmd: python src/pipelines/forecast.py --merged 
+      data/processed/merged_exog.csv --outputs results/forecasts --horizons 10 
+      20 --seed 42
+    deps:
+    - path: data/processed/merged_exog.csv
+      hash: md5
+      md5: 1dcd258dd0a7ceec3cd977030e2157cd
+      size: 439120
+    - path: src/pipelines/forecast.py
+      hash: md5
+      md5: 4af8a9ecdbc56309008a47597ff89ca8
+      size: 9105
+    outs:
+    - path: results/forecasts
+      hash: md5
+      md5: f97aeadbfb2cb4ac6e3ca6e60a57f858.dir
+      size: 4702
+      nfiles: 3
