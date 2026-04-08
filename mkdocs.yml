@@ -1,6 +1,6 @@
 site_name: Energy Price Forecasting
 nav:
-  - Home: docs/site/index.md
-  - Usage: docs/site/usage.md
+  - Home: site/index.md
+  - Usage: site/usage.md
 theme:
   name: material

@@ -96,7 +96,7 @@ The repo is considered leveled up when all of the following are true:
 - [ ] CI is green.
 - [ ] Docker build succeeds.
 - [ ] MLflow run logging works.
-- [ ] docs site builds.
+- [x] docs site builds.
 - [ ] API boots locally.
 
 ---
@@ -114,14 +114,14 @@ The repo is considered leveled up when all of the following are true:
 
 ## Active focus order
 
-1. validate Phase 2 exit criteria already scaffolded (DVC / CI / Docker / docs / API boot)
+1. validate remaining Phase 2 exit criteria already scaffolded (DVC / CI / Docker / MLflow / API boot)
 2. remove any remaining large mutable tracked artifacts and align them with DVC / ignore policy
 3. defer Phase 3 benchmark/community work until Phases 1-2 are actually verified
 
 ## Immediate next slices
 
-1. **Reconcile Phase 2 verification vs scaffolding**
-   - Run the smallest checks for `dvc repro` shape, Docker build, docs build, and API boot.
+1. **Reconcile remaining Phase 2 verification vs scaffolding**
+   - Run the smallest remaining checks for `dvc repro` shape, Docker build, API boot, and MLflow logging.
    - Only after those checks, mark the corresponding exit criteria complete.
 2. **Normalize mutable artifact ownership**
    - Decide which large data/results belong in git vs DVC/LFS and update ignore/tracking policy accordingly.
@@ -155,6 +155,7 @@ When the automation session runs, it should:
 - The focused pipeline suite now verifies repo-root execution of both `python src/pipelines/forecast.py ...` and `python src/pipelines/forecast_hydra.py ...` with config overrides, without code edits.
 - The combined focused fallback command `. .venv/bin/activate && python -m unittest tests.test_forecast_pipeline tests.test_forecasting_stack -q` now runs 10 tests and passes in this environment.
 - Exact verified commands and expectations are tracked in `docs/project-plan/VERIFICATION_MATRIX.md`.
+- `mkdocs build --strict` now succeeds in the repo-local `.venv`; the generated `site/` output is ignored in git.
 - `pytest` is still not available on the bare system interpreter, so CI remains the authoritative `pytest` runner while constrained local automation can use the `unittest` fallback.
 - GitHub SSH push credentials are not configured in this environment, so local commits may accumulate without a successful push.
 

@@ -35,6 +35,7 @@ env/
 Thumbs.db
 
 # Build / packaging artifacts
+site/
 build/
 dist/
 *.egg-info/
