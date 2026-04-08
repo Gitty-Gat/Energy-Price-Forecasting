@@ -5,9 +5,11 @@ This file is the single durable register of blockers that currently limit comple
 ## Priority order
 
 ### 1. External GitHub workflow evidence is unavailable from this environment
+- Last re-checked: 2026-04-08 11:29 America/Chicago.
 - We have local CI-equivalent evidence recorded in `docs/project-plan/VERIFICATION_MATRIX.md`.
 - We do **not** have direct observed evidence of a real GitHub Actions run from this environment.
-- Reason: GitHub CLI / workflow inspection is unavailable or unauthenticated here.
+- The repo remote is configured as `origin https://github.com/Gitty-Gat/Energy-Price-Forecasting.git`.
+- Reason: GitHub CLI / workflow inspection is unavailable or unauthenticated here (`gh-unavailable-or-auth-failed`).
 
 Impact:
 - `CI is green` should remain unverified at the repo-governance level until an actual remote workflow run is observed.
