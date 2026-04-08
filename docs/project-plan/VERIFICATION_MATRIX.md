@@ -25,6 +25,7 @@ Notes:
 | API boot smoke | `. .venv/bin/activate && python -m unittest tests.test_api_app -q` | Starts `uvicorn`, probes `/health` and `/forecast/run`, then terminates cleanly (`Ran 1 test ... OK`) | Verified |
 | Docker image build | `docker build -t energy-price-forecasting:test .` | Build completed successfully with image tag `energy-price-forecasting:test` | Verified |
 | MLflow logging smoke | `. .venv/bin/activate && python -m unittest tests.test_mlflow_logging -q` | Canonical `run_forecast()` creates one local MLflow run with expected params in a temporary file-based tracking store (`Ran 1 test ... OK`) | Verified |
+| DVC repository init | `. .venv/bin/activate && dvc init` | Succeeds after pinning `pathspec<1`, creating real `.dvc/` metadata in the repo | Verified |
 
 ## Entry-point evidence now covered by `tests.test_forecast_pipeline`
 

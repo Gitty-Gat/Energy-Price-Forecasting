@@ -114,18 +114,19 @@ The repo is considered leveled up when all of the following are true:
 
 ## Active focus order
 
-1. resolve the remaining DVC metadata blocker and align mutable artifact ownership with that decision
-2. verify CI status only after the remaining repo-state blockers are resolved
-3. defer Phase 3 benchmark/community work until Phases 1-2 are actually verified
+1. make the DVC ingest stage produce its declared output (or realign the DVC stage definitions to the intended data policy)
+2. align mutable artifact ownership with the DVC decision
+3. verify CI status only after the remaining repo-state blockers are resolved
+4. defer Phase 3 benchmark/community work until Phases 1-2 are actually verified
 
 ## Immediate next slices
 
-1. **Fix the DVC toolchain compatibility issue before retrying metadata initialization**
-   - `. .venv/bin/activate && dvc init` currently fails before creating `.dvc/` metadata because DVC cannot import `_DIR_MARK` from `pathspec.patterns.gitwildmatch`.
-   - Identify and pin a DVC-compatible `pathspec` stack (or otherwise make `dvc init` succeed) before retrying `dvc repro`.
+1. **Make the DVC ingest stage honest**
+   - `dvc init` now works, and `dvc repro` reaches the `ingest` stage.
+   - Fix `python src/ingestion/data_ingestion.py` so it creates the declared `data/raw` output, or change `dvc.yaml` if the current stage contract is wrong.
 2. **Normalize mutable artifact ownership**
    - Decide which large data/results belong in git vs DVC/LFS and update ignore/tracking policy accordingly.
-   - This likely pairs naturally with the DVC metadata decision.
+   - This likely pairs naturally with the DVC stage-contract decision.
 3. **Verify CI status only after repo-state blockers are settled**
    - Do not mark CI green from configuration alone; use an actual successful run or record the missing evidence precisely.
 
@@ -162,16 +163,16 @@ When the automation session runs, it should:
 - `docker build -t energy-price-forecasting:test .` now succeeds against the current `Dockerfile` in this environment.
 - MLflow run logging is now locally verified through the canonical forecast path via `. .venv/bin/activate && python -m unittest tests.test_mlflow_logging -q`.
 - `mlflow==2.15.1` currently depends on `pkg_resources`, so this repo now constrains `setuptools` to `<81` to keep local MLflow imports working reproducibly.
-- The repository currently contains real `data/raw`, `data/processed`, and `results/` contents, so `dvc repro` and storage-policy work are likely feasible but entangled with tracked mutable artifacts.
-- Despite `dvc.yaml` existing, the repository is not currently initialized as a DVC repository (`.dvc/` metadata is missing), so `dvc repro` is hard-blocked until that metadata is restored or created.
-- Attempting to resolve that with `. .venv/bin/activate && dvc init` currently fails inside DVC itself with `cannot import name "_DIR_MARK" from "pathspec.patterns.gitwildmatch"`, so there is also a DVC/pathspec compatibility issue to fix before metadata can be initialized.
+- The repository currently contains real `data/processed`, reference data, and `results/` contents, so DVC/storage-policy work is likely feasible but entangled with tracked mutable artifacts.
+- This repo now pins `pathspec<1` because `dvc==3.56.0` imports the private `pathspec.patterns.gitwildmatch._DIR_MARK` symbol during `dvc init`.
+- After pinning `pathspec<1`, `dvc init` now succeeds and the repository has real `.dvc/` metadata.
+- `dvc repro` now advances far enough to run the `ingest` stage, where it fails because `python src/ingestion/data_ingestion.py` does not create the declared `data/raw` output.
 - `pytest` is still not available on the bare system interpreter, so CI remains the authoritative `pytest` runner while constrained local automation can use the `unittest` fallback.
 - GitHub SSH push credentials are not configured in this environment, so local commits may accumulate without a successful push.
 
 ## Blocked
 
-- 2026-04-08 06:28 America/Chicago: Tried to resolve the missing DVC metadata by running `. .venv/bin/activate && dvc init` from the repo root. DVC crashed with `ERROR: unexpected error - cannot import name "_DIR_MARK" from "pathspec.patterns.gitwildmatch"` and left partial `.dvc/` / `.dvcignore` files behind; those partial artifacts were removed rather than committed so the repo does not falsely look initialized. In the current repo-local environment, DVC initialization itself is blocked by a DVC/pathspec compatibility problem. Do not assume the next step is simply creating `.dvc/`; the toolchain first needs a compatible dependency set.
-- 2026-04-08 05:28 America/Chicago: Re-ran the first honest DVC verification command from the repo root in the repo-local virtualenv: `. .venv/bin/activate && dvc repro`. It failed immediately with `ERROR: you are not inside of a DVC repository (checked up to mount point '/repo/energy/Energy-Price-Forecasting')`. The repo currently has `dvc.yaml`, but no `.dvc/` directory, no `.dvcignore`, and no `dvc.lock`, so DVC stage execution cannot be verified until the repository is actually initialized/restored as a DVC repo. Do not mark `dvc repro` complete or treat DVC stages as operational until that metadata exists.
+- 2026-04-08 06:58 America/Chicago: After pinning `pathspec<1` and successfully running `. .venv/bin/activate && dvc init`, re-ran `. .venv/bin/activate && dvc repro` from the repo root. DVC now reaches the `ingest` stage and executes `python src/ingestion/data_ingestion.py`, but the stage still fails because the declared output `data/raw` does not exist afterward. DVC also removed the previously tracked `data/raw` files before running the stage; those files were restored from git in this session so the repo does not silently lose raw inputs. The current blocker is therefore no longer DVC repository initialization; it is a stage-contract mismatch between `dvc.yaml` and `src/ingestion/data_ingestion.py`.
 - 2026-04-02: `git push` from this environment is not currently safe/available because the configured GitHub SSH credentials are missing (`Permission denied (publickey)`). Local commits can still be created, but remote sync cannot be assumed until SSH auth is configured.
 
 ---

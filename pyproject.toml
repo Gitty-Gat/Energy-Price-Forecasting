@@ -24,6 +24,7 @@ dependencies = [
   "mkdocs==1.6.1",
   "mkdocs-material==9.5.34",
   "dvc==3.56.0",
+  "pathspec<1",
   "setuptools>=68,<81"
 ]
 
