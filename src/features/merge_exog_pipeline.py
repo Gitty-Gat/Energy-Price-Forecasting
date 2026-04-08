@@ -92,7 +92,7 @@ def _coerce_date_column(df: pd.DataFrame) -> pd.DataFrame:
     if "date" not in df.columns:
         raise KeyError("No date-like column found; expected one of ['date','AsOfDate','Unnamed: 0', ...].")
 
-    df["date"] = pd.to_datetime(df["date"])
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
     return df
 
 
@@ -112,16 +112,27 @@ def _standardize_price_column(df: pd.DataFrame, commodity_code: str) -> pd.DataF
         else:
             raise ValueError(f"No numeric price column found in {commodity_code} price file.")
     price_col = num_cols[0]
-    df = df[["date", price_col]].dropna().drop_duplicates(subset=["date"])
+    df = df[["date", price_col]].copy()
+    df[price_col] = pd.to_numeric(df[price_col], errors="coerce")
+    df = df.dropna().drop_duplicates(subset=["date"])
     df = df.rename(columns={price_col: f"PRICE_{commodity_code}"})
     return df
 
 
 def load_prices(path, commodity_code):
-    df = pd.read_csv(path)
-    # Standardize date & price col
-    df = _standardize_price_column(df, commodity_code)
-    return df.sort_values("date").reset_index(drop=True)
+    read_attempts = [
+        {"header": 0},
+        {"header": 1},
+    ]
+    last_error = None
+    for kwargs in read_attempts:
+        try:
+            df = pd.read_csv(path, **kwargs)
+            df = _standardize_price_column(df, commodity_code)
+            return df.sort_values("date").reset_index(drop=True)
+        except Exception as exc:
+            last_error = exc
+    raise last_error
 
 
 

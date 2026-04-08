@@ -18,3 +18,24 @@ stages:
       hash: md5
       md5: 023224e3a82d6e34feaebbd464973455
       size: 1461
+  merge:
+    cmd: python src/features/merge_exog_pipeline.py
+    deps:
+    - path: data/processed/ingestion_manifest.json
+      hash: md5
+      md5: 023224e3a82d6e34feaebbd464973455
+      size: 1461
+    - path: data/raw
+      hash: md5
+      md5: e7c4438e4fb933f39c79270fb43a3b71.dir
+      size: 2161283
+      nfiles: 11
+    - path: src/features/merge_exog_pipeline.py
+      hash: md5
+      md5: 049e599a887615b700426ca4be149885
+      size: 19884
+    outs:
+    - path: data/processed/merged_exog.csv
+      hash: md5
+      md5: 1dcd258dd0a7ceec3cd977030e2157cd
+      size: 439120

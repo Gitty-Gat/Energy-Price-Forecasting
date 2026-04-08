@@ -84,7 +84,7 @@ The repo is considered leveled up when all of the following are true:
 
 ### Phase 2 — Production/community ready
 - [x] Add DVC and `dvc.yaml` stages for ingest → features → forecast → diagnostics → backtest.
-- [ ] Move large mutable data/results out of normal git tracking where appropriate.
+- [x] Move large mutable data/results out of normal git tracking where appropriate.
 - [x] Add GitHub Actions CI for lint, tests, docs build, and minimal smoke forecast.
 - [x] Add `Dockerfile` and `.dockerignore`.
 - [x] Add MLflow experiment tracking.
@@ -114,21 +114,19 @@ The repo is considered leveled up when all of the following are true:
 
 ## Active focus order
 
-1. advance `dvc repro` beyond the newly honest ingest stage, starting with merge
-2. align mutable artifact ownership with the DVC decision
-3. verify CI status only after the remaining repo-state blockers are resolved
-4. defer Phase 3 benchmark/community work until Phases 1-2 are actually verified
+1. make the DVC forecast stage compatible with the merged union calendar / schema expectations
+2. verify CI status only after the remaining repo-state blockers are resolved
+3. defer Phase 3 benchmark/community work until Phases 1-2 are actually verified
 
 ## Immediate next slices
 
-1. **Advance `dvc repro` past ingest**
-   - `dvc repro ingest` now passes and writes `data/processed/ingestion_manifest.json` as the stage output.
-   - Re-run `dvc repro` (or `dvc repro merge`) and fix the next real stage-contract failure rather than revisiting ingestion.
-2. **Normalize mutable artifact ownership**
-   - Decide which large data/results belong in git vs DVC/LFS and update ignore/tracking policy accordingly.
-   - The new ingestion manifest stage makes that discussion more concrete.
-3. **Verify CI status only after repo-state blockers are settled**
+1. **Make the DVC forecast stage honest**
+   - `dvc repro` now passes ingest and merge, then fails in `src/pipelines/forecast.py` because `merged_exog_schema` rejects null `PRICE_NG` / `PRICE_OL` rows in the union-calendar merged file.
+   - Decide whether the canonical fix is to filter future/null price rows before schema validation in forecast loading, or to narrow the merge output handed to forecast.
+2. **Verify CI status only after repo-state blockers are settled**
    - Do not mark CI green from configuration alone; use an actual successful run or record the missing evidence precisely.
+3. **Keep mutable artifacts out of Git**
+   - Preserve the new ignore/index behavior for `data/processed/` and `results/`; do not re-add generated outputs to SCM while DVC stages own them.
 
 ---
 
@@ -163,7 +161,7 @@ When the automation session runs, it should:
 - `docker build -t energy-price-forecasting:test .` now succeeds against the current `Dockerfile` in this environment.
 - MLflow run logging is now locally verified through the canonical forecast path via `. .venv/bin/activate && python -m unittest tests.test_mlflow_logging -q`.
 - `mlflow==2.15.1` currently depends on `pkg_resources`, so this repo now constrains `setuptools` to `<81` to keep local MLflow imports working reproducibly.
-- The repository currently contains real `data/raw`, `data/processed`, reference data, and `results/` contents, so DVC/storage-policy work is feasible but entangled with tracked mutable artifacts.
+- The repository currently contains real `data/raw`, `data/processed`, reference data, and `results/` contents, and the generated `data/processed/` / `results/` artifacts are now removed from normal Git tracking so DVC can own those stage outputs.
 - This repo now pins `pathspec<1` because `dvc==3.56.0` imports the private `pathspec.patterns.gitwildmatch._DIR_MARK` symbol during `dvc init`.
 - After pinning `pathspec<1`, `dvc init` now succeeds and the repository has real `.dvc/` metadata.
 - The ingest stage is now honest: `python src/ingestion/data_ingestion.py --raw-root data/raw --output-path data/processed/ingestion_manifest.json` validates the expected raw inputs and writes a deterministic manifest tracked by DVC.
@@ -173,6 +171,7 @@ When the automation session runs, it should:
 
 ## Blocked
 
+- 2026-04-08 07:28 America/Chicago: After untracking generated `data/processed/` and `results/` artifacts from Git so DVC could own those outputs, re-ran `. .venv/bin/activate && dvc repro`. DVC now completes `ingest` and `merge`, but fails in the `forecast` stage because `src/pipelines/forecast.py` validates the union-calendar `data/processed/merged_exog.csv` against `merged_exog_schema`, which rejects the null `PRICE_NG` / `PRICE_OL` rows that represent future forecast dates. `dvc repro` is therefore blocked by a forecast-loading/schema contract mismatch, not by DVC wiring or SCM tracking anymore.
 - 2026-04-02: `git push` from this environment is not currently safe/available because the configured GitHub SSH credentials are missing (`Permission denied (publickey)`). Local commits can still be created, but remote sync cannot be assumed until SSH auth is configured.
 
 ---

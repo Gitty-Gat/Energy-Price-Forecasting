@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from pandera.errors import SchemaErrors
 
-from src.features.merge_exog_pipeline import load_sentiment, merge_exogenous
+from src.features.merge_exog_pipeline import load_prices, load_sentiment, merge_exogenous
 from src.ingestion.data_ingestion import compute_degree_days, load_price_data
 from src.models.arimax import fit_arimax
 from src.models.vecm_garch import VECMGARCHHybrid
@@ -45,6 +45,25 @@ class TestForecastingStack(unittest.TestCase):
             self.assertEqual(degree_days.iloc[0].to_dict(), {"HDD": 8.0, "CDD": 0.0})
             self.assertEqual(degree_days.iloc[1].to_dict(), {"HDD": 0.0, "CDD": 0.0})
             self.assertEqual(degree_days.iloc[2].to_dict(), {"HDD": 0.0, "CDD": 7.0})
+
+    def test_load_prices_handles_capiq_prompt_month_header_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            csv_path = Path(tmpdir) / "ng_prompt.csv"
+            csv_path.write_text(
+                ", [Henry Hub].[Natural Gas Futures Prompt Month].[NYMEX].[USD]\n"
+                "AsOf,PRICE\n"
+                ",\n"
+                "3/27/2006,7.067\n"
+                "3/28/2006,7.214\n",
+                encoding="utf-8",
+            )
+
+            loaded = load_prices(str(csv_path), "NG")
+
+            self.assertEqual(list(loaded.columns), ["date", "PRICE_NG"])
+            self.assertEqual(len(loaded), 2)
+            self.assertEqual(str(loaded.loc[0, "date"].date()), "2006-03-27")
+            self.assertAlmostEqual(float(loaded.loc[0, "PRICE_NG"]), 7.067)
 
     def test_load_sentiment_long_format_normalizes_to_wide(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
