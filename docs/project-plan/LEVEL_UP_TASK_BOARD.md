@@ -120,9 +120,9 @@ The repo is considered leveled up when all of the following are true:
 
 ## Immediate next slices
 
-1. **Resolve the DVC metadata blocker before claiming DVC stage operability**
-   - Restore or initialize the missing `.dvc/` repository metadata (and any required `.dvcignore` / lockfile behavior) before retrying `dvc repro`.
-   - If the intended direction is to remove DVC claims instead, record that decision explicitly before more infra work.
+1. **Fix the DVC toolchain compatibility issue before retrying metadata initialization**
+   - `. .venv/bin/activate && dvc init` currently fails before creating `.dvc/` metadata because DVC cannot import `_DIR_MARK` from `pathspec.patterns.gitwildmatch`.
+   - Identify and pin a DVC-compatible `pathspec` stack (or otherwise make `dvc init` succeed) before retrying `dvc repro`.
 2. **Normalize mutable artifact ownership**
    - Decide which large data/results belong in git vs DVC/LFS and update ignore/tracking policy accordingly.
    - This likely pairs naturally with the DVC metadata decision.
@@ -164,11 +164,13 @@ When the automation session runs, it should:
 - `mlflow==2.15.1` currently depends on `pkg_resources`, so this repo now constrains `setuptools` to `<81` to keep local MLflow imports working reproducibly.
 - The repository currently contains real `data/raw`, `data/processed`, and `results/` contents, so `dvc repro` and storage-policy work are likely feasible but entangled with tracked mutable artifacts.
 - Despite `dvc.yaml` existing, the repository is not currently initialized as a DVC repository (`.dvc/` metadata is missing), so `dvc repro` is hard-blocked until that metadata is restored or created.
+- Attempting to resolve that with `. .venv/bin/activate && dvc init` currently fails inside DVC itself with `cannot import name "_DIR_MARK" from "pathspec.patterns.gitwildmatch"`, so there is also a DVC/pathspec compatibility issue to fix before metadata can be initialized.
 - `pytest` is still not available on the bare system interpreter, so CI remains the authoritative `pytest` runner while constrained local automation can use the `unittest` fallback.
 - GitHub SSH push credentials are not configured in this environment, so local commits may accumulate without a successful push.
 
 ## Blocked
 
+- 2026-04-08 06:28 America/Chicago: Tried to resolve the missing DVC metadata by running `. .venv/bin/activate && dvc init` from the repo root. DVC crashed with `ERROR: unexpected error - cannot import name "_DIR_MARK" from "pathspec.patterns.gitwildmatch"` and left partial `.dvc/` / `.dvcignore` files behind; those partial artifacts were removed rather than committed so the repo does not falsely look initialized. In the current repo-local environment, DVC initialization itself is blocked by a DVC/pathspec compatibility problem. Do not assume the next step is simply creating `.dvc/`; the toolchain first needs a compatible dependency set.
 - 2026-04-08 05:28 America/Chicago: Re-ran the first honest DVC verification command from the repo root in the repo-local virtualenv: `. .venv/bin/activate && dvc repro`. It failed immediately with `ERROR: you are not inside of a DVC repository (checked up to mount point '/repo/energy/Energy-Price-Forecasting')`. The repo currently has `dvc.yaml`, but no `.dvc/` directory, no `.dvcignore`, and no `dvc.lock`, so DVC stage execution cannot be verified until the repository is actually initialized/restored as a DVC repo. Do not mark `dvc repro` complete or treat DVC stages as operational until that metadata exists.
 - 2026-04-02: `git push` from this environment is not currently safe/available because the configured GitHub SSH credentials are missing (`Permission denied (publickey)`). Local commits can still be created, but remote sync cannot be assumed until SSH auth is configured.
 
