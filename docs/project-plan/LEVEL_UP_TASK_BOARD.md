@@ -176,6 +176,7 @@ When the automation session runs, it should:
 
 ## Blocked
 
+- 2026-04-08 10:28 America/Chicago: Re-checked the top remaining Phase 2 item (real GitHub Actions evidence). The repo remote is configured (`origin https://github.com/Gitty-Gat/Energy-Price-Forecasting.git`), but this environment still cannot inspect workflow runs because `gh` is unavailable/unauthenticated (`gh-unavailable-or-auth-failed`) and push remains unavailable. No higher-priority unblocked Phase 2 slice exists until actual workflow evidence can be observed externally or push/auth is restored.
 - 2026-04-08 09:28 America/Chicago: A fresh local CI-equivalent run now passes in a temporary virtualenv after adding `pytest` to `requirements.txt`, but actual GitHub Actions evidence still cannot be inspected from this environment because `gh` is unavailable/unauthenticated and `git push` is not currently safe/available here. Keep `CI is green` unchecked until a real workflow run can be observed.
 - 2026-04-02: `git push` from this environment is not currently safe/available because the configured GitHub SSH credentials are missing (`Permission denied (publickey)`). Local commits can still be created, but remote sync cannot be assumed until SSH auth is configured.
 
