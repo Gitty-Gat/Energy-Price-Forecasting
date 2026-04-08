@@ -13,11 +13,11 @@ Build a reproducible forecasting system for prompt-month natural gas and crude o
 - Recent work has improved model wiring, forecast loading, task-board clarity, and truthful local verification evidence.
 
 ## Remaining to complete
-1. Verify the stack honestly: tests, install path, canonical pipeline, CI, Docker, and DVC all need proven green paths.
-2. Resolve dirty/unverified work slices before claiming phase completion.
-3. Clean up data/results ownership so git is not used as a sloppy artifact bucket.
-4. Distinguish clearly between scaffolded, implemented, and verified capabilities.
-5. Close the gap between polished documentation and actual execution evidence.
+1. Obtain actual external CI evidence (GitHub Actions run URL / SHA / status) before calling Phase 2 fully closed.
+2. Keep artifact ownership disciplined so local experiments do not repollute the repo working tree.
+3. Distinguish clearly between local verification evidence and externally observed CI evidence.
+4. Avoid busywork churn while waiting on external access; prefer a clean holding pattern over cosmetic commits.
+5. Defer Phase 3 work until the final Phase 2 evidence gap is closed or explicitly waived.
 
 ## Candid critique / contradictions
 - The repo improved structurally faster than it improved operational truthfulness.
@@ -26,11 +26,9 @@ Build a reproducible forecasting system for prompt-month natural gas and crude o
 - The project still wants both a clean engineering repo and a giant tracked artifact dump; that tension needs a real decision.
 
 ## Improvement opportunities
-- Re-score the task board using `scaffolded`, `implemented`, and `verified` states.
-- Finish and verify `tests/test_forecasting_stack.py` before broader claims.
-- Add a verification matrix with exact commands and expected outputs.
-- Normalize data/result policy around git vs DVC/LFS.
-- Add one-command developer workflows via `Makefile` or `justfile`.
+- Add one-command developer workflows via `Makefile` or `justfile` once external CI evidence is available.
+- Consider replacing repeated blocker-timestamp commits with a lighter-weight review cadence unless the blocker meaningfully changes.
+- If the project wants to move beyond local verification, decide whether GitHub Actions visibility or authenticated push access should be provisioned for automation.
 
 ## Completion plan
 
@@ -71,6 +69,6 @@ Commit only when the slice leaves the repo more truthful than before. Push after
 
 ## Immediate next slices
 1. Obtain actual GitHub Actions run evidence once push/auth is available; local CI-equivalent evidence now exists but should not be overclaimed as CI green.
-2. Keep `docs/project-plan/DATA_POLICY.md` aligned with the actual Git-vs-DVC ownership boundary if that policy changes.
-3. Keep `docs/project-plan/VERIFICATION_MATRIX.md` in sync with every newly verified capability.
+2. Keep `docs/project-plan/DATA_POLICY.md` aligned with the actual Git-vs-DVC ownership boundary if that policy changes, and delete any stray local-only artifacts (`mlruns/`, Hydra `outputs/`) if they reappear.
+3. Keep `docs/project-plan/VERIFICATION_MATRIX.md` in sync only when genuinely new verification evidence appears.
 4. Defer Phase 3 benchmark/community work until CI evidence exists.
