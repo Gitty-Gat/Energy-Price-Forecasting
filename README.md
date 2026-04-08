@@ -172,9 +172,20 @@ Hydra-configured equivalent:
 python src/pipelines/forecast_hydra.py
 ```
 
+Hydra override example (no code edits required):
+
+```bash
+python src/pipelines/forecast_hydra.py \
+  merged=/absolute/path/to/merged.csv \
+  outputs=/absolute/path/to/out_dir \
+  horizons=[3] \
+  seed=9 \
+  with_hybrid=false
+```
+
 Config lives in `conf/forecast.yaml`.
 
-This writes forecast CSV outputs and `results/forecasts/run_metadata.json` including timestamp, git hash, seed, and run config.
+This writes forecast CSV outputs and `results/forecasts/run_metadata.json` including timestamp, git hash, seed, and run config. See `docs/project-plan/VERIFICATION_MATRIX.md` for exact locally verified commands.
 
 ## Canonical workflow narrative
 

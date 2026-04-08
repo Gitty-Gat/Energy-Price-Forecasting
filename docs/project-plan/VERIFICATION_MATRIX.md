@@ -1,0 +1,68 @@
+# Verification Matrix
+
+This file records the smallest concrete commands that have been exercised locally in the current development environment. The goal is to separate **verified** behavior from scaffolding that merely exists in the repo.
+
+## Local environment used
+
+```bash
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -e .
+```
+
+Notes:
+- The base system `python3` in this automation environment is too minimal for the scientific stack.
+- All verified commands below were run from the repository root using the repo-local `.venv`.
+
+## Verified commands
+
+| Capability | Exact command | Evidence | Status |
+| --- | --- | --- | --- |
+| Focused forecasting stack verification | `. .venv/bin/activate && python -m unittest tests.test_forecasting_stack -q` | `Ran 6 tests ... OK` | Verified |
+| Focused pipeline + entrypoint verification | `. .venv/bin/activate && python -m unittest tests.test_forecast_pipeline -q` | Runs direct `forecast.py` and `forecast_hydra.py` subprocess checks plus local pipeline tests | Verified |
+| Combined focused local verification | `. .venv/bin/activate && python -m unittest tests.test_forecast_pipeline tests.test_forecasting_stack -q` | `Ran 10 tests ... OK` | Verified |
+
+## Entry-point evidence now covered by `tests.test_forecast_pipeline`
+
+The focused pipeline suite now verifies these concrete repo-root commands without requiring code edits:
+
+```bash
+python src/pipelines/forecast.py \
+  --merged <tmp>/merged.csv \
+  --outputs <tmp>/out_cli \
+  --horizons 4 \
+  --seed 11
+```
+
+Expected evidence:
+- writes `<tmp>/out_cli/forecast_returns_h4.csv`
+- writes `<tmp>/out_cli/run_metadata.json`
+- metadata records `seed == 11`
+- metadata records `config.horizons == [4]`
+
+```bash
+python src/pipelines/forecast_hydra.py \
+  merged=<tmp>/merged.csv \
+  outputs=<tmp>/out_hydra \
+  horizons=[3] \
+  seed=9 \
+  with_hybrid=false
+```
+
+Expected evidence:
+- writes `<tmp>/out_hydra/forecast_returns_h3.csv`
+- writes `<tmp>/out_hydra/run_metadata.json`
+- metadata records `seed == 9`
+- metadata records `config.horizons == [3]`
+- metadata records `config.outputs == <tmp>/out_hydra`
+
+## Not yet verified here
+
+The following repo capabilities remain scaffolded or unverified in this environment and should not be marked complete until exercised explicitly:
+
+- `dvc repro`
+- Docker build
+- docs site build
+- API boot
+- CI green status from a real run
+- MLflow logging end-to-end verification
