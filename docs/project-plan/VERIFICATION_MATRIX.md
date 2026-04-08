@@ -66,9 +66,10 @@ Expected evidence:
 - metadata records `config.horizons == [3]`
 - metadata records `config.outputs == <tmp>/out_hydra`
 
-## Not yet verified here
+## Still externally unverified
 
-The following repo capabilities remain scaffolded or unverified in this environment and should not be marked complete until exercised explicitly:
+The following capability should still not be marked complete without external evidence:
 
-- `dvc repro`
-- CI green status from a real run
+- CI green status from a real observed GitHub Actions run
+
+Everything else listed above is locally verified in the repo-local `.venv` or local container/runtime context.

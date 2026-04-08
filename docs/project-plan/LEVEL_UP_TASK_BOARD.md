@@ -147,38 +147,10 @@ When the automation session runs, it should:
 
 ## Dependency / environment notes
 
-- The repo metadata expects a richer dev environment than this automation session currently has on PATH.
-- The base system `python3` in this environment is too minimal to import the repo scientific stack, but a repo-local `.venv` now works after `python3 -m venv .venv && . .venv/bin/activate && python -m pip install -e .`.
-- Use `.venv/bin/python` (or activate `.venv`) for local verification in this environment rather than the bare system interpreter.
-- The exact focused verification command for `tests/test_forecasting_stack.py` now passes inside that `.venv`.
-- The focused pipeline suite now verifies repo-root execution of both `python src/pipelines/forecast.py ...` and `python src/pipelines/forecast_hydra.py ...` with config overrides, without code edits.
-- The combined focused fallback command `. .venv/bin/activate && python -m unittest tests.test_forecast_pipeline tests.test_forecasting_stack -q` now runs 10 tests and passes in this environment.
-- Exact verified commands and expectations are tracked in `docs/project-plan/VERIFICATION_MATRIX.md`.
-- `mkdocs build --strict` now succeeds in the repo-local `.venv`; the generated `site/` output is ignored in git.
-- API boot is now locally verified via a stdlib `unittest` that starts `uvicorn`, probes `/health` and `/forecast/run`, and terminates cleanly.
-- `fastapi.testclient` is not currently usable in this environment because `httpx` is not installed; local API verification therefore uses the `uvicorn` + stdlib HTTP path instead.
-- `docker build -t energy-price-forecasting:test .` now succeeds against the current `Dockerfile` in this environment.
-- MLflow run logging is now locally verified through the canonical forecast path via `. .venv/bin/activate && python -m unittest tests.test_mlflow_logging -q`.
-- `mlflow==2.15.1` currently depends on `pkg_resources`, so this repo now constrains `setuptools` to `<81` to keep local MLflow imports working reproducibly.
-- The repository currently contains real `data/raw`, `data/processed`, reference data, and `results/` contents, and the generated `data/processed/` / `results/` artifacts are now removed from normal Git tracking so DVC can own those stage outputs.
-- This repo now pins `pathspec<1` because `dvc==3.56.0` imports the private `pathspec.patterns.gitwildmatch._DIR_MARK` symbol during `dvc init`.
-- After pinning `pathspec<1`, `dvc init` now succeeds and the repository has real `.dvc/` metadata.
-- The ingest stage is now honest: `python src/ingestion/data_ingestion.py --raw-root data/raw --output-path data/processed/ingestion_manifest.json` validates the expected raw inputs and writes a deterministic manifest tracked by DVC.
-- The forecast stage now treats the union-calendar merged file honestly: it validates only historical priced rows, preserves future exogenous rows separately, and uses those future exogenous values when building forecast horizons.
-- The diagnostics stage is now driven by `src/diagnostics/canonical_diagnostics.py`, which consumes the canonical `forecast_returns_h*.csv` outputs and writes summary/plot artifacts into `results/diagnostics`.
-- The backtest stage now runs from the modern repo layout using canonical prompt-month loaders, repo-local defaults, and generated outputs under `results/backtests/`.
-- Full `. .venv/bin/activate && dvc repro` now succeeds end-to-end in this environment.
-- A fresh local CI-equivalent run (`python3 -m venv <tmp>/ci-venv && . <tmp>/ci-venv/bin/activate && pip install -r requirements.txt && pytest -q && test -f README.md`) now passes after adding `pytest` to `requirements.txt`.
-- `docs/project-plan/DATA_POLICY.md` now documents the current ownership split: Git owns `data/raw/` and `data/reference/`, while generated `data/processed/` and `results/` outputs stay out of normal Git tracking.
-- `data/processed/ingestion_manifest.json` is intentionally ignored by git as a generated DVC output.
-- `pytest` is still not available on the bare system interpreter, so CI remains the authoritative `pytest` runner while constrained local automation can use the `unittest` fallback.
-- GitHub SSH push credentials are not configured in this environment, so local commits may accumulate without a successful push.
-
-## Blocked
-
-- 2026-04-08 10:59 America/Chicago: Re-checked the top remaining Phase 2 item (real GitHub Actions evidence). The repo remote is configured (`origin https://github.com/Gitty-Gat/Energy-Price-Forecasting.git`), but this environment still cannot inspect workflow runs because `gh` is unavailable/unauthenticated (`gh-unavailable-or-auth-failed`) and push remains unavailable. No higher-priority unblocked Phase 2 slice exists until actual workflow evidence can be observed externally or push/auth is restored.
-- 2026-04-08 09:28 America/Chicago: A fresh local CI-equivalent run now passes in a temporary virtualenv after adding `pytest` to `requirements.txt`, but actual GitHub Actions evidence still cannot be inspected from this environment because `gh` is unavailable/unauthenticated and `git push` is not currently safe/available here. Keep `CI is green` unchecked until a real workflow run can be observed.
-- 2026-04-02: `git push` from this environment is not currently safe/available because the configured GitHub SSH credentials are missing (`Permission denied (publickey)`). Local commits can still be created, but remote sync cannot be assumed until SSH auth is configured.
+- Use the repo-local `.venv` for local verification; the bare system interpreter is not sufficient for the scientific stack.
+- Exact locally verified commands and evidence live in `docs/project-plan/VERIFICATION_MATRIX.md`.
+- Current active blockers live in `docs/project-plan/BLOCKERS.md`.
+- Do not mark external CI/push-dependent items complete without external evidence.
 
 ---
 
