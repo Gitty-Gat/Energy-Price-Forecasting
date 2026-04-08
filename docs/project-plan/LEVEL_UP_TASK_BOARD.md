@@ -94,7 +94,7 @@ The repo is considered leveled up when all of the following are true:
 ### Exit criteria for Phase 2
 - [ ] `dvc repro` works.
 - [ ] CI is green.
-- [ ] Docker build succeeds.
+- [x] Docker build succeeds.
 - [ ] MLflow run logging works.
 - [x] docs site builds.
 - [x] API boots locally.
@@ -114,21 +114,19 @@ The repo is considered leveled up when all of the following are true:
 
 ## Active focus order
 
-1. verify Docker build next as the smallest remaining Phase 2 runtime surface
-2. verify DVC / MLflow behavior only after the runtime path is stable enough to trust those checks
-3. remove remaining large mutable tracked artifacts and align them with DVC / ignore policy
-4. defer Phase 3 benchmark/community work until Phases 1-2 are actually verified
+1. verify DVC / MLflow behavior now that docs, API, and Docker all have real verification evidence
+2. remove remaining large mutable tracked artifacts and align them with DVC / ignore policy
+3. defer Phase 3 benchmark/community work until Phases 1-2 are actually verified
 
 ## Immediate next slices
 
-1. **Verify Docker build**
-   - Run the smallest honest Docker build command against the current `Dockerfile`.
-   - If the environment lacks Docker, record that precise blocker rather than guessing.
-2. **Verify DVC / MLflow after runtime checks**
+1. **Verify DVC / MLflow after runtime checks**
    - Use the existing local data/results footprint to test `dvc repro` shape and a minimal MLflow-backed forecast run.
    - If these checks are confounded by tracked mutable outputs, record that in the board before changing storage policy.
-3. **Normalize mutable artifact ownership**
+2. **Normalize mutable artifact ownership**
    - Decide which large data/results belong in git vs DVC/LFS and update ignore/tracking policy accordingly.
+3. **Keep the verification matrix current**
+   - Record the exact DVC / MLflow commands and outcomes before marking those criteria complete.
 
 ---
 
@@ -160,6 +158,7 @@ When the automation session runs, it should:
 - `mkdocs build --strict` now succeeds in the repo-local `.venv`; the generated `site/` output is ignored in git.
 - API boot is now locally verified via a stdlib `unittest` that starts `uvicorn`, probes `/health` and `/forecast/run`, and terminates cleanly.
 - `fastapi.testclient` is not currently usable in this environment because `httpx` is not installed; local API verification therefore uses the `uvicorn` + stdlib HTTP path instead.
+- `docker build -t energy-price-forecasting:test .` now succeeds against the current `Dockerfile` in this environment.
 - The repository currently contains real `data/raw`, `data/processed`, and `results/` contents, so `dvc repro` and storage-policy work are likely feasible but entangled with tracked mutable artifacts.
 - `pytest` is still not available on the bare system interpreter, so CI remains the authoritative `pytest` runner while constrained local automation can use the `unittest` fallback.
 - GitHub SSH push credentials are not configured in this environment, so local commits may accumulate without a successful push.

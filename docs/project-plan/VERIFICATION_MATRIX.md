@@ -23,6 +23,7 @@ Notes:
 | Combined focused local verification | `. .venv/bin/activate && python -m unittest tests.test_forecast_pipeline tests.test_forecasting_stack -q` | `Ran 10 tests ... OK` | Verified |
 | Docs site build | `. .venv/bin/activate && mkdocs build --strict` | Built successfully after correcting `mkdocs.yml` nav paths to use docs-root-relative entries | Verified |
 | API boot smoke | `. .venv/bin/activate && python -m unittest tests.test_api_app -q` | Starts `uvicorn`, probes `/health` and `/forecast/run`, then terminates cleanly (`Ran 1 test ... OK`) | Verified |
+| Docker image build | `docker build -t energy-price-forecasting:test .` | Build completed successfully with image tag `energy-price-forecasting:test` | Verified |
 
 ## Entry-point evidence now covered by `tests.test_forecast_pipeline`
 
@@ -63,6 +64,5 @@ Expected evidence:
 The following repo capabilities remain scaffolded or unverified in this environment and should not be marked complete until exercised explicitly:
 
 - `dvc repro`
-- Docker build
 - CI green status from a real run
 - MLflow logging end-to-end verification

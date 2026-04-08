@@ -70,7 +70,7 @@ Block structure:
 Commit only when the slice leaves the repo more truthful than before. Push after each coherent block or verified milestone.
 
 ## Immediate next slices
-1. Verify the Docker build path, or record a precise environment blocker if Docker is unavailable here.
-2. Verify `dvc repro` and minimal MLflow logging only after the runtime path is confirmed.
-3. Add `docs/project-plan/DATA_POLICY.md` to resolve the remaining git-vs-DVC artifact ownership tension.
-4. Add `Makefile` or `justfile` only after the verified commands stabilize.
+1. Verify `dvc repro` and minimal MLflow logging now that docs, API, and Docker have real verification evidence.
+2. Add `docs/project-plan/DATA_POLICY.md` to resolve the remaining git-vs-DVC artifact ownership tension.
+3. Add `Makefile` or `justfile` only after the verified commands stabilize.
+4. Keep `docs/project-plan/VERIFICATION_MATRIX.md` in sync with every newly verified capability.
