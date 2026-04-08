@@ -258,9 +258,16 @@ def load_sentiment(path: str) -> pd.DataFrame:
             .str.replace("oil", "ol", regex=False)
         )
         df = tmp.pivot(index="date", columns="commodity", values="sentiment").reset_index()
+        df = df.rename(
+            columns={
+                col: f"sentiment_{col}"
+                for col in df.columns
+                if col != "date" and not str(col).startswith("sentiment_")
+            }
+        )
 
     # Normalize names
-    df.columns = [c.lower().replace("oil", "ol") for c in df.columns]
+    df.columns = [str(c).lower().replace("oil", "ol") for c in df.columns]
     if "sentiment_oil" in df.columns and "sentiment_ol" not in df.columns:
         df = df.rename(columns={"sentiment_oil": "sentiment_ol"})
 
