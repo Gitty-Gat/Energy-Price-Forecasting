@@ -10,7 +10,7 @@ Build a reproducible forecasting system for prompt-month natural gas and crude o
 - The repo has been reshaped into a credible project structure with `src/`, `tests/`, `docs/`, CI, Docker, DVC, and packaging artifacts.
 - A canonical forecast entrypoint exists and legacy wrapper drift has started to narrow.
 - Validation, tracking, API, and docs scaffolding are in place.
-- Recent work has improved model wiring, forecast loading, and task-board clarity.
+- Recent work has improved model wiring, forecast loading, task-board clarity, and truthful local verification evidence.
 
 ## Remaining to complete
 1. Verify the stack honestly: tests, install path, canonical pipeline, CI, Docker, and DVC all need proven green paths.
@@ -43,7 +43,7 @@ Build a reproducible forecasting system for prompt-month natural gas and crude o
 - Document the exact commands that pass.
 
 ### Milestone 3 — Infra credibility
-- Make CI, Docker, and DVC execute real commands rather than placeholders.
+- Make CI, Docker, DVC, docs, and API checks execute real commands rather than placeholders.
 - Confirm the repo can be cloned and exercised cleanly.
 
 ### Milestone 4 — Data governance
@@ -70,7 +70,7 @@ Block structure:
 Commit only when the slice leaves the repo more truthful than before. Push after each coherent block or verified milestone.
 
 ## Immediate next slices
-1. Finish/verify `tests/test_forecasting_stack.py`.
-2. Add `docs/project-plan/VERIFICATION_MATRIX.md`.
-3. Add `docs/project-plan/DATA_POLICY.md`.
-4. Add `Makefile` or `justfile` for install/test/forecast/docs/API.
+1. Verify local API boot with the smallest honest command and record the exact evidence.
+2. Verify the Docker build path, or record a precise environment blocker if Docker is unavailable here.
+3. Verify `dvc repro` and minimal MLflow logging only after the runtime path is confirmed.
+4. Add `docs/project-plan/DATA_POLICY.md` to resolve the remaining git-vs-DVC artifact ownership tension.
