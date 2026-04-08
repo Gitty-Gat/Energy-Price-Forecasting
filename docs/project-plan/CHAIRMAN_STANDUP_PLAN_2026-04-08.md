@@ -70,7 +70,7 @@ Block structure:
 Commit only when the slice leaves the repo more truthful than before. Push after each coherent block or verified milestone.
 
 ## Immediate next slices
-1. Fix the diagnostics-stage CLI mismatch exposed by `dvc repro`: `energy_pipeline_diagnostics_v1.py` currently requires `--results_dir` but `dvc.yaml` does not pass it.
+1. Fix the backtest-stage import/layout mismatch exposed by `dvc repro`: `backtest_runner.py` still imports `vecm_garch` from a legacy flat path.
 2. Add `docs/project-plan/DATA_POLICY.md` to resolve any remaining git-vs-DVC artifact ownership tension.
 3. Verify CI only from real run evidence, not from workflow files existing.
 4. Keep `docs/project-plan/VERIFICATION_MATRIX.md` in sync with every newly verified capability.

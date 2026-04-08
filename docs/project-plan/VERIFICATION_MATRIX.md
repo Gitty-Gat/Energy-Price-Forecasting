@@ -28,6 +28,7 @@ Notes:
 | DVC repository init | `. .venv/bin/activate && dvc init` | Succeeds after pinning `pathspec<1`, creating real `.dvc/` metadata in the repo | Verified |
 | DVC ingest stage | `. .venv/bin/activate && dvc repro ingest` | Ingest now validates `data/raw` inputs and writes `data/processed/ingestion_manifest.json`, updating `dvc.lock` successfully | Verified |
 | DVC forecast stage | `. .venv/bin/activate && dvc repro` | Pipeline now completes `ingest`, `merge`, and `forecast`; forecast uses future exogenous rows from the union-calendar merged file before the pipeline stops at the diagnostics CLI mismatch | Verified |
+| DVC diagnostics stage | `. .venv/bin/activate && dvc repro diagnostics` | Canonical diagnostics entrypoint consumes `forecast_returns_h*.csv`, writes summaries/plots to `results/diagnostics`, and updates `dvc.lock` successfully | Verified |
 
 ## Entry-point evidence now covered by `tests.test_forecast_pipeline`
 

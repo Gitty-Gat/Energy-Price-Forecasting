@@ -25,9 +25,10 @@ stages:
       - results/forecasts
 
   diagnostics:
-    cmd: python src/diagnostics/energy_pipeline_diagnostics_v1.py
+    cmd: python src/diagnostics/canonical_diagnostics.py --forecast-dir results/forecasts --output-dir results/diagnostics
     deps:
       - results/forecasts
+      - src/diagnostics/canonical_diagnostics.py
     outs:
       - results/diagnostics
 

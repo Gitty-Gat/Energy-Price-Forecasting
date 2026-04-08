@@ -58,3 +58,22 @@ stages:
       md5: f97aeadbfb2cb4ac6e3ca6e60a57f858.dir
       size: 4702
       nfiles: 3
+  diagnostics:
+    cmd: python src/diagnostics/canonical_diagnostics.py --forecast-dir 
+      results/forecasts --output-dir results/diagnostics
+    deps:
+    - path: results/forecasts
+      hash: md5
+      md5: f97aeadbfb2cb4ac6e3ca6e60a57f858.dir
+      size: 4702
+      nfiles: 3
+    - path: src/diagnostics/canonical_diagnostics.py
+      hash: md5
+      md5: f4c7c202bd040cfb80ee3e88311a9077
+      size: 4125
+    outs:
+    - path: results/diagnostics
+      hash: md5
+      md5: 651a25eb52c966048a1790559b8dc915.dir
+      size: 144025
+      nfiles: 6
