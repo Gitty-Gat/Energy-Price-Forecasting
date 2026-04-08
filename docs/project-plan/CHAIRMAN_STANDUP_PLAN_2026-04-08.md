@@ -70,7 +70,7 @@ Block structure:
 Commit only when the slice leaves the repo more truthful than before. Push after each coherent block or verified milestone.
 
 ## Immediate next slices
-1. Fix the backtest-stage import/layout mismatch exposed by `dvc repro`: `backtest_runner.py` still imports `vecm_garch` from a legacy flat path.
+1. Verify CI only from real run evidence, not from workflow files existing.
 2. Add `docs/project-plan/DATA_POLICY.md` to resolve any remaining git-vs-DVC artifact ownership tension.
-3. Verify CI only from real run evidence, not from workflow files existing.
-4. Keep `docs/project-plan/VERIFICATION_MATRIX.md` in sync with every newly verified capability.
+3. Keep `docs/project-plan/VERIFICATION_MATRIX.md` in sync with every newly verified capability.
+4. Defer Phase 3 benchmark/community work until CI evidence exists.

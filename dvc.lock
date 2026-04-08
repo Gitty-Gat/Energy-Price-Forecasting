@@ -77,3 +77,33 @@ stages:
       md5: 651a25eb52c966048a1790559b8dc915.dir
       size: 144025
       nfiles: 6
+  backtest:
+    cmd: python src/diagnostics/backtest_runner.py --ng_csv 
+      data/raw/prices/NG_prompt_month_futures_price.csv --ol_csv 
+      data/raw/prices/Oil_prompt_month_futures_price.csv --out_csv 
+      results/backtests/backtest_results.csv --plots_dir results/backtests/plots
+      --model baseline
+    deps:
+    - path: data/raw/prices/NG_prompt_month_futures_price.csv
+      hash: md5
+      md5: 7a4d594e8314f822ce1878510b27c628
+      size: 83695
+    - path: data/raw/prices/Oil_prompt_month_futures_price.csv
+      hash: md5
+      md5: 301dfb1691e8b121013c02e431313eb2
+      size: 67192
+    - path: results/forecasts
+      hash: md5
+      md5: f97aeadbfb2cb4ac6e3ca6e60a57f858.dir
+      size: 4702
+      nfiles: 3
+    - path: src/diagnostics/backtest_runner.py
+      hash: md5
+      md5: 6e2d89b7acde76d71b4d60245beaba94
+      size: 28619
+    outs:
+    - path: results/backtests
+      hash: md5
+      md5: 2cd8d4a29faa4db59c403b843d78731c.dir
+      size: 717695
+      nfiles: 13

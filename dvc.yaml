@@ -33,8 +33,11 @@ stages:
       - results/diagnostics
 
   backtest:
-    cmd: python src/diagnostics/backtest_runner.py
+    cmd: python src/diagnostics/backtest_runner.py --ng_csv data/raw/prices/NG_prompt_month_futures_price.csv --ol_csv data/raw/prices/Oil_prompt_month_futures_price.csv --out_csv results/backtests/backtest_results.csv --plots_dir results/backtests/plots --model baseline
     deps:
+      - data/raw/prices/NG_prompt_month_futures_price.csv
+      - data/raw/prices/Oil_prompt_month_futures_price.csv
       - results/forecasts
+      - src/diagnostics/backtest_runner.py
     outs:
       - results/backtests

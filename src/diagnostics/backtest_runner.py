@@ -46,120 +46,76 @@ Dependencies
 """
 
 from __future__ import annotations
-from vecm_garch import VECMGARCHHybrid
 
 import argparse
 import os
-from datetime import datetime, timedelta
-from typing import List, Optional, Tuple, Dict
+import sys
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-
 from statsmodels.tsa.statespace.sarimax import SARIMAX
-# near the top of backtest_runner.py
-from vecm_garch import VECMGARCHHybrid
-import inspect
 
+if __package__ in {None, ""}:
+    repo_root = Path(__file__).resolve().parents[2]
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
 
-# backtest_runner.py
-import subprocess
-from pathlib import Path
-
-def run_forecast_block(horizon=10, start_index=500, windowing="rolling"):
-    script = Path("C:/Users/seani/OneDrive - University of Illinois - Urbana/Documents/STAT 429/Project/Python Files/energy_pipeline_forecastv2.0.py")
-    cmd = [
-        "python", str(script),
-        "--price-ng", "data/prices/NG_prompt_month_futures_price.csv",
-        "--price-ol", "data/prices/Oil_prompt_month_futures_price.csv",
-        "--weather",   "data/weather/hdd_cdd_forecast.csv",
-        "--sentiment", "data/nlp/sentiment_exog.csv",
-        "--outputs",   "outputs",
-        "--horizon",   str(horizon),
-        "--start",     str(start_index),
-        "--windowing", windowing,               # "rolling" or "expanding"
-        "--exog-cols", "HDD,CDD,sentiment_ng,sentiment_ol",
-        "--arimax-ng", "5,0,1",
-        "--arimax-ol", "0,0,4",
-        "--vecm-lags", "2",
-        "--vecm-rank", "2",
-        "--with-coverage",
-    ]
-    subprocess.run(cmd, check=True)
+from src.features.merge_exog_pipeline import load_prices
+from src.models.vecm_garch import VECMGARCHHybrid
 
 
 def load_price_series(path: str, label: str) -> pd.DataFrame:
-    """Thin wrapper around the pipeline's load_price_csv.
+    """Load a prompt-month price CSV via the canonical schema-aware loader."""
+    commodity = label.upper()
+    if commodity not in {"NG", "OL"}:
+        raise ValueError(f"Unsupported label for price series: {label}")
+    loaded = load_prices(path, commodity)
+    return loaded.rename(columns={f"PRICE_{commodity}": commodity})
 
-    This function attempts to import ``load_price_csv`` from
-    ``energy_pipeline_forecast_v1.2.py`` at runtime.  If the import
-    fails, it falls back to a simple CSV reader that infers the date
-    and price columns.  See the production pipeline for the
-    sophisticated implementation.
 
-    Parameters
-    ----------
-    path : str
-        Path to the price CSV file.
-    label : str
-        Column label to assign to the price series ("NG" or "OL").
+def compute_constant_variance_ci(
+    levels: np.ndarray,
+    last_price: float,
+    sigma2: float
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Compute constant‐variance 95 % confidence intervals for level forecasts."""
+    H = len(levels)
+    horizons = np.arange(1, H + 1, dtype=float)
+    log_pred = np.log(levels / last_price)
+    cum_var = horizons * sigma2
+    z = 1.96
+    log_lower = log_pred - z * np.sqrt(cum_var)
+    log_upper = log_pred + z * np.sqrt(cum_var)
+    lower = last_price * np.exp(log_lower)
+    upper = last_price * np.exp(log_upper)
+    return lower, upper
 
-    Returns
-    -------
-    DataFrame
-        DataFrame with columns ``date`` and the specified label.
-    """
+
+def forecast_with_vecm_garch(train_df, horizon, vecm_lags=1, rank=1, use_garch=False):
+    ctor_params = set(__import__('inspect').signature(VECMGARCHHybrid).parameters.keys())
+    kwargs = {"vecm_lags": vecm_lags, "coint_rank": rank}
+    if "use_garch" in ctor_params:
+        kwargs["use_garch"] = use_garch
+
+    model = VECMGARCHHybrid(**kwargs)
     try:
-        # Dynamically import the pipeline module to access its helper
-        import importlib.util
-        spec = importlib.util.spec_from_file_location(
-            "energy_pipeline_forecast_v1_2", os.path.join(os.path.dirname(__file__), "energy_pipeline_forecast_v1.2.py")
-        )
-        ep = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(ep)  # type: ignore
-        return ep.load_price_csv(path, label)
-    except Exception:
-        # Fallback: read CSV and infer date/price columns
-        df = pd.read_csv(path, sep=None, engine="python")
-        # Infer date column
-        date_col = None
-        for c in ["date", "Date", "DATE", "timestamp", "Timestamp"]:
-            if c in df.columns:
-                date_col = c
-                break
-        if date_col is None:
-            # try any column convertible to datetime
-            for c in df.columns:
-                try:
-                    pd.to_datetime(df[c])
-                    date_col = c
-                    break
-                except Exception:
-                    continue
-        if date_col is None:
-            raise ValueError(f"Could not infer date column in {path}")
-        # Infer price column
-        price_col = None
-        for c in ["PRICE_NG", "PRICE_OL", "price", "Price", "settle", "Settle", "PX_LAST"]:
-            if c in df.columns:
-                price_col = c
-                break
-        if price_col is None:
-            for c in df.columns:
-                if c == date_col:
-                    continue
-                if pd.api.types.is_numeric_dtype(df[c]):
-                    price_col = c
-                    break
-        if price_col is None:
-            raise ValueError(f"Could not infer price column in {path}")
-        out = df[[date_col, price_col]].copy()
-        out.columns = ["date", label]
-        out["date"] = pd.to_datetime(out["date"], errors="coerce").dt.tz_localize(None)
-        out = out.dropna(subset=["date"]).sort_values("date").reset_index(drop=True)
-        out = out.groupby("date", as_index=False).last()
-        return out
+        model.fit(train_df, price_cols=("NG", "OL"))
+        fc = model.forecast(int(horizon))
+    except Exception as e:
+        print(f"Hybrid fit/forecast failed for horizon {horizon}: {str(e)}")
+        return None
+
+    return dict(
+        ng_fc=fc["forecast_ng"].to_numpy(),
+        ng_lo=fc["lower_ng"].to_numpy(),
+        ng_hi=fc["upper_ng"].to_numpy(),
+        ol_fc=fc["forecast_ol"].to_numpy(),
+        ol_lo=fc["lower_ol"].to_numpy(),
+        ol_hi=fc["upper_ol"].to_numpy(),
+    )
 
 
 def load_exog_series(path: Optional[str], exog_cols: Optional[List[str]] = None) -> Optional[pd.DataFrame]:
@@ -295,77 +251,6 @@ def prepare_exog(df: pd.DataFrame, exog_cols: List[str], target_index: pd.Dateti
     return X_aligned
 
 
-def compute_constant_variance_ci(
-    levels: np.ndarray,
-    last_price: float,
-    sigma2: float
-) -> Tuple[np.ndarray, np.ndarray]:
-    """Compute constant‐variance 95 % confidence intervals for level forecasts.
-
-    Given a vector of forecasted levels, the last observed price and the
-    one‐step variance ``sigma2``, this function returns the lower and
-    upper bounds of the 95 % confidence interval at each step h (h=1
-    through H).  The interval is based on the assumption that the log
-    returns are independent with variance ``sigma2``, so the variance
-    accumulates linearly in h.
-
-    Parameters
-    ----------
-    levels : ndarray
-        Forecasted price levels of length H.
-    last_price : float
-        Last observed price used to normalise the forecast path.
-    sigma2 : float
-        Estimated variance of one‐step log returns.
-
-    Returns
-    -------
-    Tuple[np.ndarray, np.ndarray]
-        Lower and upper confidence bounds of length H.
-    """
-    H = len(levels)
-    horizons = np.arange(1, H + 1, dtype=float)
-    # Compute log‐scale predictions relative to last_price
-    log_pred = np.log(levels / last_price)
-    cum_var = horizons * sigma2
-    z = 1.96  # 95% CI
-    log_lower = log_pred - z * np.sqrt(cum_var)
-    log_upper = log_pred + z * np.sqrt(cum_var)
-    lower = last_price * np.exp(log_lower)
-    upper = last_price * np.exp(log_upper)
-    return lower, upper
-
-import inspect
-
-from vecm_garch import VECMGARCHHybrid
-import inspect
-import numpy as np
-
-def forecast_with_vecm_garch(train_df, horizon, vecm_lags=1, rank=1, use_garch=False):
-    import inspect
-    ctor_params = set(inspect.signature(VECMGARCHHybrid).parameters.keys())
-    kwargs = {"vecm_lags": vecm_lags, "coint_rank": rank}
-    if "use_garch" in ctor_params:
-        kwargs["use_garch"] = use_garch
-
-    model = VECMGARCHHybrid(**kwargs)
-    try:
-        model.fit(train_df, price_cols=("NG","OL"))
-        fc = model.forecast(int(horizon))
-    except Exception as e:
-        print(f"Hybrid fit/forecast failed for horizon {horizon}: {str(e)}")  # Or use logging.warning
-        return None
-
-    return dict(
-        ng_fc = fc["forecast_ng"].to_numpy(),
-        ng_lo = fc["lower_ng"].to_numpy(),
-        ng_hi = fc["upper_ng"].to_numpy(),
-        ol_fc = fc["forecast_ol"].to_numpy(),
-        ol_lo = fc["lower_ol"].to_numpy(),
-        ol_hi = fc["upper_ol"].to_numpy(),
-    )
-
-
 
 
 
@@ -380,7 +265,7 @@ def run_backtest(
     end_date: Optional[pd.Timestamp],
     step_days: int,
     plots_dir: Optional[str],
-    model: str = "both",
+    model: str = "baseline",
     vecm_lags: int = 1,
     vecm_rank: int = 1, 
     vecm_use_garch: bool = True,
@@ -610,10 +495,7 @@ def run_backtest(
                 {"date_start": date_start_str, "date_end": date_end_str, "H": H, "metric": "coverage_ol", "value": coverage_ol},
             ])
                                     # ===== HYBRID: VECM–GARCH A/B =====
-            # Guard (pick any approach that fits your script):
-            use_hybrid = True  # (or False)
-
-
+            use_hybrid = model in {"vecm_garch", "both"}
 
             if use_hybrid:
                 train_levels = df_train.loc[:, ["date","NG","OL"]].dropna().copy()
@@ -695,8 +577,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run rolling/expanding backtests for NG and OL forecasts."
     )
-    parser.add_argument("--ng_csv", type=str, required=True, help="Path to NG price CSV")
-    parser.add_argument("--ol_csv", type=str, required=True, help="Path to OL price CSV")
+    parser.add_argument("--ng_csv", type=str, default="data/raw/prices/NG_prompt_month_futures_price.csv", help="Path to NG price CSV")
+    parser.add_argument("--ol_csv", type=str, default="data/raw/prices/Oil_prompt_month_futures_price.csv", help="Path to OL price CSV")
     parser.add_argument(
         "--exog_csv", type=str, default=None, help="Optional exogenous CSV with date column"
     )
@@ -754,19 +636,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--out_csv",
         type=str,
-        default="backtest_results.csv",
+        default="results/backtests/backtest_results.csv",
         help="Path to write the tidy backtest results CSV",
     )
     parser.add_argument(
         "--plots_dir",
         type=str,
-        default=None,
+        default="results/backtests/plots",
         help="Optional directory to save metric plots (PNG)",
     )
     parser.add_argument(
     "--model",
     choices=["baseline", "vecm_garch", "both"],
-    default="both",
+    default="baseline",
     help="Which model(s) to backtest: baseline ARIMAX or VECM-GARCH, or both."
     )
 
@@ -811,7 +693,8 @@ def main() -> None:
         vecm_use_garch=args.vecm_use_garch,
     )
     # Write results to CSV
-    out_path = args.out_csv
+    out_path = Path(args.out_csv)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     results_df.to_csv(out_path, index=False)
     print(f"Backtest complete. Results written to {out_path}")
     if args.plots_dir:

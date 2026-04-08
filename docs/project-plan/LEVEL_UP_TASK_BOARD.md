@@ -92,7 +92,7 @@ The repo is considered leveled up when all of the following are true:
 - [x] Add FastAPI app with health + forecast run endpoints.
 
 ### Exit criteria for Phase 2
-- [ ] `dvc repro` works.
+- [x] `dvc repro` works.
 - [ ] CI is green.
 - [x] Docker build succeeds.
 - [x] MLflow run logging works.
@@ -114,19 +114,18 @@ The repo is considered leveled up when all of the following are true:
 
 ## Active focus order
 
-1. make the DVC backtest stage import and run from the modern repo layout
-2. verify CI status only after the remaining repo-state blockers are resolved
-3. defer Phase 3 benchmark/community work until Phases 1-2 are actually verified
+1. verify CI status from a real run, not workflow files alone
+2. defer Phase 3 benchmark/community work until Phases 1-2 are actually verified
 
 ## Immediate next slices
 
-1. **Make the DVC backtest stage importable from the modern layout**
-   - `dvc repro` now passes ingest, merge, forecast, and diagnostics, then fails in `src/diagnostics/backtest_runner.py` with `ModuleNotFoundError: No module named 'vecm_garch'`.
-   - Fix the backtest script to import the modern module path (and any other legacy hard-coded paths) before claiming full `dvc repro` success.
-2. **Verify CI status only after repo-state blockers are settled**
-   - Do not mark CI green from configuration alone; use an actual successful run or record the missing evidence precisely.
-3. **Keep mutable artifacts out of Git**
+1. **Verify CI status from real evidence**
+   - Run the smallest honest CI-equivalent checks available in this environment, or inspect actual workflow run evidence if accessible.
+   - Do not mark CI green from workflow files existing alone.
+2. **Keep mutable artifacts out of Git**
    - Preserve the new ignore/index behavior for `data/processed/` and `results/`; do not re-add generated outputs to SCM while DVC stages own them.
+3. **Phase 3 only after Phase 2 evidence is complete**
+   - Benchmark/community work stays lower priority until CI evidence exists.
 
 ---
 
@@ -167,13 +166,14 @@ When the automation session runs, it should:
 - The ingest stage is now honest: `python src/ingestion/data_ingestion.py --raw-root data/raw --output-path data/processed/ingestion_manifest.json` validates the expected raw inputs and writes a deterministic manifest tracked by DVC.
 - The forecast stage now treats the union-calendar merged file honestly: it validates only historical priced rows, preserves future exogenous rows separately, and uses those future exogenous values when building forecast horizons.
 - The diagnostics stage is now driven by `src/diagnostics/canonical_diagnostics.py`, which consumes the canonical `forecast_returns_h*.csv` outputs and writes summary/plot artifacts into `results/diagnostics`.
+- The backtest stage now runs from the modern repo layout using canonical prompt-month loaders, repo-local defaults, and generated outputs under `results/backtests/`.
+- Full `. .venv/bin/activate && dvc repro` now succeeds end-to-end in this environment.
 - `data/processed/ingestion_manifest.json` is intentionally ignored by git as a generated DVC output.
 - `pytest` is still not available on the bare system interpreter, so CI remains the authoritative `pytest` runner while constrained local automation can use the `unittest` fallback.
 - GitHub SSH push credentials are not configured in this environment, so local commits may accumulate without a successful push.
 
 ## Blocked
 
-- 2026-04-08 08:28 America/Chicago: Re-ran `. .venv/bin/activate && dvc repro` after replacing the stale diagnostics-stage entrypoint with `src/diagnostics/canonical_diagnostics.py`. DVC now completes `ingest`, `merge`, `forecast`, and `diagnostics`, updates `dvc.lock`, and then fails in `backtest` because `src/diagnostics/backtest_runner.py` still imports `vecm_garch` from a legacy flat-module path (`ModuleNotFoundError: No module named 'vecm_garch'`). The current blocker is now a backtest-stage import/layout mismatch, not diagnostics.
 - 2026-04-02: `git push` from this environment is not currently safe/available because the configured GitHub SSH credentials are missing (`Permission denied (publickey)`). Local commits can still be created, but remote sync cannot be assumed until SSH auth is configured.
 
 ---
