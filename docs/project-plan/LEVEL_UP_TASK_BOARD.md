@@ -160,11 +160,13 @@ When the automation session runs, it should:
 - `fastapi.testclient` is not currently usable in this environment because `httpx` is not installed; local API verification therefore uses the `uvicorn` + stdlib HTTP path instead.
 - `docker build -t energy-price-forecasting:test .` now succeeds against the current `Dockerfile` in this environment.
 - The repository currently contains real `data/raw`, `data/processed`, and `results/` contents, so `dvc repro` and storage-policy work are likely feasible but entangled with tracked mutable artifacts.
+- Despite `dvc.yaml` existing, the repository is not currently initialized as a DVC repository (`.dvc/` metadata is missing), so `dvc repro` is hard-blocked until that metadata is restored or created.
 - `pytest` is still not available on the bare system interpreter, so CI remains the authoritative `pytest` runner while constrained local automation can use the `unittest` fallback.
 - GitHub SSH push credentials are not configured in this environment, so local commits may accumulate without a successful push.
 
 ## Blocked
 
+- 2026-04-08 05:28 America/Chicago: Re-ran the first honest DVC verification command from the repo root in the repo-local virtualenv: `. .venv/bin/activate && dvc repro`. It failed immediately with `ERROR: you are not inside of a DVC repository (checked up to mount point '/repo/energy/Energy-Price-Forecasting')`. The repo currently has `dvc.yaml`, but no `.dvc/` directory, no `.dvcignore`, and no `dvc.lock`, so DVC stage execution cannot be verified until the repository is actually initialized/restored as a DVC repo. Do not mark `dvc repro` complete or treat DVC stages as operational until that metadata exists.
 - 2026-04-02: `git push` from this environment is not currently safe/available because the configured GitHub SSH credentials are missing (`Permission denied (publickey)`). Local commits can still be created, but remote sync cannot be assumed until SSH auth is configured.
 
 ---
