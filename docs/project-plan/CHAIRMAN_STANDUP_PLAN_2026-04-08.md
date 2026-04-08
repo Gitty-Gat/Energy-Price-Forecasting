@@ -70,7 +70,7 @@ Block structure:
 Commit only when the slice leaves the repo more truthful than before. Push after each coherent block or verified milestone.
 
 ## Immediate next slices
-1. Make the DVC ingest stage produce the declared `data/raw` output (or explicitly realign `dvc.yaml` to the intended data policy).
+1. Advance `dvc repro` beyond ingest, starting with the merge stage and the next real stage-contract failure.
 2. Add `docs/project-plan/DATA_POLICY.md` to resolve the remaining git-vs-DVC artifact ownership tension.
 3. Verify CI only from real run evidence, not from workflow files existing.
 4. Keep `docs/project-plan/VERIFICATION_MATRIX.md` in sync with every newly verified capability.

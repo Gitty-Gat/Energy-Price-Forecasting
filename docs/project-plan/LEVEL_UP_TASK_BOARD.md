@@ -114,19 +114,19 @@ The repo is considered leveled up when all of the following are true:
 
 ## Active focus order
 
-1. make the DVC ingest stage produce its declared output (or realign the DVC stage definitions to the intended data policy)
+1. advance `dvc repro` beyond the newly honest ingest stage, starting with merge
 2. align mutable artifact ownership with the DVC decision
 3. verify CI status only after the remaining repo-state blockers are resolved
 4. defer Phase 3 benchmark/community work until Phases 1-2 are actually verified
 
 ## Immediate next slices
 
-1. **Make the DVC ingest stage honest**
-   - `dvc init` now works, and `dvc repro` reaches the `ingest` stage.
-   - Fix `python src/ingestion/data_ingestion.py` so it creates the declared `data/raw` output, or change `dvc.yaml` if the current stage contract is wrong.
+1. **Advance `dvc repro` past ingest**
+   - `dvc repro ingest` now passes and writes `data/processed/ingestion_manifest.json` as the stage output.
+   - Re-run `dvc repro` (or `dvc repro merge`) and fix the next real stage-contract failure rather than revisiting ingestion.
 2. **Normalize mutable artifact ownership**
    - Decide which large data/results belong in git vs DVC/LFS and update ignore/tracking policy accordingly.
-   - This likely pairs naturally with the DVC stage-contract decision.
+   - The new ingestion manifest stage makes that discussion more concrete.
 3. **Verify CI status only after repo-state blockers are settled**
    - Do not mark CI green from configuration alone; use an actual successful run or record the missing evidence precisely.
 
@@ -163,16 +163,16 @@ When the automation session runs, it should:
 - `docker build -t energy-price-forecasting:test .` now succeeds against the current `Dockerfile` in this environment.
 - MLflow run logging is now locally verified through the canonical forecast path via `. .venv/bin/activate && python -m unittest tests.test_mlflow_logging -q`.
 - `mlflow==2.15.1` currently depends on `pkg_resources`, so this repo now constrains `setuptools` to `<81` to keep local MLflow imports working reproducibly.
-- The repository currently contains real `data/processed`, reference data, and `results/` contents, so DVC/storage-policy work is likely feasible but entangled with tracked mutable artifacts.
+- The repository currently contains real `data/raw`, `data/processed`, reference data, and `results/` contents, so DVC/storage-policy work is feasible but entangled with tracked mutable artifacts.
 - This repo now pins `pathspec<1` because `dvc==3.56.0` imports the private `pathspec.patterns.gitwildmatch._DIR_MARK` symbol during `dvc init`.
 - After pinning `pathspec<1`, `dvc init` now succeeds and the repository has real `.dvc/` metadata.
-- `dvc repro` now advances far enough to run the `ingest` stage, where it fails because `python src/ingestion/data_ingestion.py` does not create the declared `data/raw` output.
+- The ingest stage is now honest: `python src/ingestion/data_ingestion.py --raw-root data/raw --output-path data/processed/ingestion_manifest.json` validates the expected raw inputs and writes a deterministic manifest tracked by DVC.
+- `data/processed/ingestion_manifest.json` is intentionally ignored by git as a generated DVC output.
 - `pytest` is still not available on the bare system interpreter, so CI remains the authoritative `pytest` runner while constrained local automation can use the `unittest` fallback.
 - GitHub SSH push credentials are not configured in this environment, so local commits may accumulate without a successful push.
 
 ## Blocked
 
-- 2026-04-08 06:58 America/Chicago: After pinning `pathspec<1` and successfully running `. .venv/bin/activate && dvc init`, re-ran `. .venv/bin/activate && dvc repro` from the repo root. DVC now reaches the `ingest` stage and executes `python src/ingestion/data_ingestion.py`, but the stage still fails because the declared output `data/raw` does not exist afterward. DVC also removed the previously tracked `data/raw` files before running the stage; those files were restored from git in this session so the repo does not silently lose raw inputs. The current blocker is therefore no longer DVC repository initialization; it is a stage-contract mismatch between `dvc.yaml` and `src/ingestion/data_ingestion.py`.
 - 2026-04-02: `git push` from this environment is not currently safe/available because the configured GitHub SSH credentials are missing (`Permission denied (publickey)`). Local commits can still be created, but remote sync cannot be assumed until SSH auth is configured.
 
 ---

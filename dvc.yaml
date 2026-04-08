@@ -1,13 +1,17 @@
 stages:
   ingest:
-    cmd: python src/ingestion/data_ingestion.py
-    outs:
+    cmd: python src/ingestion/data_ingestion.py --raw-root data/raw --output-path data/processed/ingestion_manifest.json
+    deps:
       - data/raw
+      - src/ingestion/data_ingestion.py
+    outs:
+      - data/processed/ingestion_manifest.json
 
   merge:
     cmd: python src/features/merge_exog_pipeline.py
     deps:
       - data/raw
+      - data/processed/ingestion_manifest.json
       - src/features/merge_exog_pipeline.py
     outs:
       - data/processed/merged_exog.csv
