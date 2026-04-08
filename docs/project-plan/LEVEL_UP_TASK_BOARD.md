@@ -73,10 +73,10 @@ The repo is considered leveled up when all of the following are true:
 - [x] Add tests for ingestion, merging, schema validation, ARIMAX smoke, VECM smoke, and deterministic seeding.
 
 ### Exit criteria for Phase 1
-- [ ] Focused fixture-sized test suite passes in the local environment (`pytest` in dev environments; stdlib `unittest` fallback is acceptable for constrained automation verification).
+- [x] Focused fixture-sized test suite passes in the local environment (`pytest` in dev environments; stdlib `unittest` fallback is acceptable for constrained automation verification).
 - [ ] Config changes do not require code edits.
-- [ ] VECM behavior is deterministic and auditable.
-- [ ] Invalid input schemas fail fast.
+- [x] VECM behavior is deterministic and auditable.
+- [x] Invalid input schemas fail fast.
 
 ---
 
@@ -114,17 +114,16 @@ The repo is considered leveled up when all of the following are true:
 
 ## Active focus order
 
-1. verify the focused fixture-sized suites together (`test_forecast_pipeline.py` + `test_forecasting_stack.py`)
-2. close Phase 1 exit criteria with fixture-sized verification and schema-failure checks
-3. validate Phase 2 exit criteria already scaffolded (DVC / CI / Docker / docs / API boot)
-4. remove any remaining large mutable tracked artifacts and align them with DVC / ignore policy
-5. defer Phase 3 benchmark/community work until Phases 1-2 are actually verified
+1. close the remaining Phase 1 config-driven verification gap
+2. validate Phase 2 exit criteria already scaffolded (DVC / CI / Docker / docs / API boot)
+3. remove any remaining large mutable tracked artifacts and align them with DVC / ignore policy
+4. defer Phase 3 benchmark/community work until Phases 1-2 are actually verified
 
 ## Immediate next slices
 
-1. **Verify the two focused fixture-sized suites together**
-   - Run: `. .venv/bin/activate && python -m unittest tests.test_forecast_pipeline tests.test_forecasting_stack -q`
-   - If green, use that combined result as the strongest local Phase 1 verification evidence so far.
+1. **Close the remaining Phase 1 config-driven verification gap**
+   - Add one focused verification slice that proves config changes flow through the canonical forecast entrypoint without code edits.
+   - Record the exact command and evidence before marking the final unchecked Phase 1 exit criterion complete.
 2. **Make fixture-sized local verification repeatable**
    - Document or script the repo-local `.venv` bootstrap path used in this session so future delegates do not fall back to the minimal system Python.
    - Keep CI as the authoritative `pytest` runner while local constrained automation can use `unittest` where needed.
@@ -156,6 +155,7 @@ When the automation session runs, it should:
 - The base system `python3` in this environment is too minimal to import the repo scientific stack, but a repo-local `.venv` now works after `python3 -m venv .venv && . .venv/bin/activate && python -m pip install -e .`.
 - Use `.venv/bin/python` (or activate `.venv`) for local verification in this environment rather than the bare system interpreter.
 - The exact focused verification command for `tests/test_forecasting_stack.py` now passes inside that `.venv`.
+- The combined focused fallback command `. .venv/bin/activate && python -m unittest tests.test_forecast_pipeline tests.test_forecasting_stack -q` now runs 8 tests and passes in this environment.
 - `pytest` is still not available on the bare system interpreter, so CI remains the authoritative `pytest` runner while constrained local automation can use the `unittest` fallback.
 - GitHub SSH push credentials are not configured in this environment, so local commits may accumulate without a successful push.
 
