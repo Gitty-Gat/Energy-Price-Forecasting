@@ -22,6 +22,7 @@ Notes:
 | Focused pipeline + entrypoint verification | `. .venv/bin/activate && python -m unittest tests.test_forecast_pipeline -q` | Runs direct `forecast.py` and `forecast_hydra.py` subprocess checks plus local pipeline tests | Verified |
 | Combined focused local verification | `. .venv/bin/activate && python -m unittest tests.test_forecast_pipeline tests.test_forecasting_stack -q` | `Ran 10 tests ... OK` | Verified |
 | Docs site build | `. .venv/bin/activate && mkdocs build --strict` | Built successfully after correcting `mkdocs.yml` nav paths to use docs-root-relative entries | Verified |
+| API boot smoke | `. .venv/bin/activate && python -m unittest tests.test_api_app -q` | Starts `uvicorn`, probes `/health` and `/forecast/run`, then terminates cleanly (`Ran 1 test ... OK`) | Verified |
 
 ## Entry-point evidence now covered by `tests.test_forecast_pipeline`
 
@@ -63,6 +64,5 @@ The following repo capabilities remain scaffolded or unverified in this environm
 
 - `dvc repro`
 - Docker build
-- API boot
 - CI green status from a real run
 - MLflow logging end-to-end verification
