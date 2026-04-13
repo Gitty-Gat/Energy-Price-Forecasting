@@ -114,20 +114,25 @@ The repo is considered leveled up when all of the following are true:
 
 ## Active focus order
 
-1. obtain or inspect actual GitHub Actions run evidence once repo push/auth is available
-2. keep the repo clean of regenerated local-only artifacts while waiting on external CI evidence
-3. defer Phase 3 benchmark/community work until Phase 2 CI evidence is actually verified
+1. normalize the local verification environment when `.venv` drifts from `requirements.txt`
+2. obtain or inspect actual GitHub Actions run evidence once repo push/auth is available
+3. keep the repo clean of regenerated local-only artifacts while waiting on external CI evidence
+4. defer Phase 3 benchmark/community work until Phase 2 CI evidence is actually verified
 
 ## Immediate next slices
 
-1. **Obtain actual GitHub Actions run evidence**
+1. **Normalize local verification bootstrap when the repo-local `.venv` is stale**
+   - As of the latest phase review, the checked-in workflow file still expects `pytest -q`, and `requirements.txt` still pins `pytest==8.3.2`, but the existing repo-local `.venv` in this environment did not have `pytest` installed.
+   - Treat this as environment drift, not a product-code regression: if `pytest` is missing, refresh the environment with the bootstrap commands from `docs/project-plan/VERIFICATION_MATRIX.md` before judging the repo state.
+   - Prefer one small hygiene slice (for example, docs or automation guidance) over repeated failed verification attempts against a stale virtualenv.
+2. **Obtain actual GitHub Actions run evidence**
    - The local CI-equivalent workflow now passes in a fresh temporary virtualenv, but `CI is green` should remain unchecked until an actual workflow run can be inspected after push/auth is available.
    - If access is unchanged, do not churn the repo with repeated timestamp-only blocker commits; prefer updating `docs/project-plan/BLOCKERS.md` only when the evidence meaningfully changes.
-2. **Keep mutable artifacts out of Git**
+3. **Keep mutable artifacts out of Git**
    - Follow `docs/project-plan/DATA_POLICY.md` as the source of truth for Git-vs-DVC ownership.
    - Delete stray local-only `mlruns/` or Hydra `outputs/` directories if they reappear; do not commit them.
    - Do not re-add generated `data/processed/` or `results/` outputs to SCM while DVC stages own them.
-3. **Phase 3 only after Phase 2 evidence is complete**
+4. **Phase 3 only after Phase 2 evidence is complete**
    - Benchmark/community work stays lower priority until actual CI evidence exists.
 
 ---
@@ -151,6 +156,7 @@ When the automation session runs, it should:
 ## Dependency / environment notes
 
 - Use the repo-local `.venv` for local verification; the bare system interpreter is not sufficient for the scientific stack.
+- If the existing `.venv` is missing expected tools such as `pytest`, treat that as local environment drift and refresh it from `requirements.txt` (or recreate it) before interpreting verification failures as repo regressions.
 - Exact locally verified commands and evidence live in `docs/project-plan/VERIFICATION_MATRIX.md`.
 - Current active blockers live in `docs/project-plan/BLOCKERS.md`.
 - Local-only experiment artifacts such as `mlruns/` and Hydra `outputs/` should be treated as disposable workspace noise, not roadmap progress.

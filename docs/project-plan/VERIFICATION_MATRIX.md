@@ -12,7 +12,26 @@ python -m pip install -e .
 
 Notes:
 - The base system `python3` in this automation environment is too minimal for the scientific stack.
-- All verified commands below were run from the repository root using the repo-local `.venv`.
+- All verified commands below were run from the repository root using the repo-local `.venv` or a freshly created temporary virtualenv where noted.
+- During the 2026-04-13 phase review, the existing repo-local `.venv` was present but stale enough that `pytest` was not installed even though `requirements.txt` still pins it. Treat that as environment drift: refresh from `requirements.txt` or recreate the virtualenv before treating a missing-tool failure as a repo regression.
+
+## Refresh commands when `.venv` has drifted
+
+```bash
+rm -rf .venv
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+If preserving the existing environment matters, a smaller refresh is acceptable:
+
+```bash
+. .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
 
 ## Verified commands
 
