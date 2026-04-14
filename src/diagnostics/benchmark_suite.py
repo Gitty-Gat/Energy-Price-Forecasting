@@ -72,6 +72,35 @@ def _fit_sarimax(
         return model.fit(disp=False, method="powell")
 
 
+def _fit_candidate_result(
+    y_train: pd.Series,
+    exog_train: Optional[pd.DataFrame],
+    order: tuple[int, int, int],
+) -> object:
+    exog_train_use = None if exog_train is None or exog_train.shape[1] == 0 else exog_train
+    return _fit_sarimax(y_train, exog_train_use, order=order, trend="n")
+
+
+def _forecast_from_candidate_result(
+    result: object,
+    y_train_len: int,
+    exog_future: Optional[pd.DataFrame],
+    horizon: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    exog_future_use = None if exog_future is None or exog_future.shape[1] == 0 else exog_future
+    if exog_future_use is not None:
+        exog_future_use = _with_range_index(
+            pd.DataFrame(exog_future_use, copy=True).astype(float),
+            start=y_train_len,
+        )
+    pred = result.get_forecast(steps=horizon, exog=exog_future_use)
+    conf = pred.conf_int(alpha=0.05)
+    mean = np.asarray(pred.predicted_mean, dtype=float)
+    lower = np.asarray(conf.iloc[:, 0], dtype=float)
+    upper = np.asarray(conf.iloc[:, 1], dtype=float)
+    return mean, lower, upper
+
+
 def _candidate_forecast(
     y_train: pd.Series,
     exog_train: Optional[pd.DataFrame],
@@ -79,20 +108,8 @@ def _candidate_forecast(
     order: tuple[int, int, int],
     horizon: int,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    exog_train_use = None if exog_train is None or exog_train.shape[1] == 0 else exog_train
-    exog_future_use = None if exog_future is None or exog_future.shape[1] == 0 else exog_future
-    if exog_future_use is not None:
-        exog_future_use = _with_range_index(
-            pd.DataFrame(exog_future_use, copy=True).astype(float),
-            start=len(y_train),
-        )
-    result = _fit_sarimax(y_train, exog_train_use, order=order, trend="n")
-    pred = result.get_forecast(steps=horizon, exog=exog_future_use)
-    conf = pred.conf_int(alpha=0.05)
-    mean = np.asarray(pred.predicted_mean, dtype=float)
-    lower = np.asarray(conf.iloc[:, 0], dtype=float)
-    upper = np.asarray(conf.iloc[:, 1], dtype=float)
-    return mean, lower, upper
+    result = _fit_candidate_result(y_train=y_train, exog_train=exog_train, order=order)
+    return _forecast_from_candidate_result(result=result, y_train_len=len(y_train), exog_future=exog_future, horizon=horizon)
 
 
 def _simple_ar_forecast(y_train: pd.Series, horizon: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -244,6 +261,40 @@ def _candidate_model_name(variant: str) -> str:
     return f"candidate_arimax_{normalized}"
 
 
+def _candidate_parameter_audit_row(
+    result: object,
+    commodity: str,
+    train_end: pd.Timestamp,
+    regime: str,
+    candidate_model: str,
+    variant: str,
+    exog_columns: list[str],
+) -> dict[str, object]:
+    params = pd.Series(getattr(result, "params", pd.Series(dtype=float)), dtype=float)
+    exog_params = params.reindex(exog_columns).fillna(0.0).astype(float) if exog_columns else pd.Series(dtype=float)
+    tol = 1e-12
+    abs_params = exog_params.abs()
+    nonzero = int((abs_params > tol).sum()) if len(abs_params) else 0
+    return {
+        "commodity": commodity,
+        "train_end": str(train_end.date()),
+        "regime": regime,
+        "candidate_model": candidate_model,
+        "variant": variant,
+        "exog_column_count": int(len(exog_columns)),
+        "nonzero_exog_coef_count": nonzero,
+        "all_exog_coef_zero": float(nonzero == 0),
+        "mean_abs_exog_coef": float(abs_params.mean()) if len(abs_params) else 0.0,
+        "max_abs_exog_coef": float(abs_params.max()) if len(abs_params) else 0.0,
+        "sum_abs_exog_coef": float(abs_params.sum()) if len(abs_params) else 0.0,
+        "log_likelihood": float(getattr(result, "llf", np.nan)),
+        "aic": float(getattr(result, "aic", np.nan)),
+        "bic": float(getattr(result, "bic", np.nan)),
+        "exog_columns": json.dumps(exog_columns),
+        "exog_params": json.dumps({k: float(v) for k, v in exog_params.items()}),
+    }
+
+
 def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
     out_dir = Path(config.outputs)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -262,6 +313,7 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
         raise ValueError("Benchmark suite requires at least one candidate variant.")
     candidate_models = {_candidate_model_name(variant) for variant in candidate_variants}
     results: list[dict[str, object]] = []
+    parameter_rows: list[dict[str, object]] = []
 
     for train_end_pos in range(config.min_train_size, total_rows - max_h, config.eval_step):
         train_start_pos = 0 if config.rolling_window is None else max(0, train_end_pos - config.rolling_window)
@@ -277,21 +329,37 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
             regime = _regime_label(series.index, y_train, train_end_pos)
             train_end = pd.Timestamp(series.index[train_end_pos - 1])
             last_price = float(df.loc[train_end, price_col])
+            candidate_fit_cache: dict[str, tuple[list[str], object]] = {}
+            for variant in candidate_variants:
+                variant_cols = select_exog_variant_columns(exog.columns, variant)
+                exog_train_use = exog_train[variant_cols] if variant_cols else None
+                result = _fit_candidate_result(y_train=y_train, exog_train=exog_train_use, order=candidate_order)
+                model_name = _candidate_model_name(variant)
+                candidate_fit_cache[variant] = (variant_cols, result)
+                parameter_rows.append(
+                    _candidate_parameter_audit_row(
+                        result=result,
+                        commodity=commodity,
+                        train_end=train_end,
+                        regime=regime,
+                        candidate_model=model_name,
+                        variant=variant,
+                        exog_columns=variant_cols,
+                    )
+                )
 
             for horizon in horizons:
                 y_test = np.asarray(series.iloc[train_end_pos:train_end_pos + horizon], dtype=float)
                 actual_prices = np.asarray(df[price_col].loc[series.index[train_end_pos:train_end_pos + horizon]], dtype=float)
                 exog_future = exog.iloc[train_end_pos:train_end_pos + horizon]
                 for variant in candidate_variants:
-                    variant_cols = select_exog_variant_columns(exog.columns, variant)
-                    exog_train_use = exog_train[variant_cols] if variant_cols else None
+                    variant_cols, fitted = candidate_fit_cache[variant]
                     exog_future_use = exog_future[variant_cols] if variant_cols else None
 
-                    candidate_mean, candidate_lower, candidate_upper = _candidate_forecast(
-                        y_train=y_train,
-                        exog_train=exog_train_use,
+                    candidate_mean, candidate_lower, candidate_upper = _forecast_from_candidate_result(
+                        result=fitted,
+                        y_train_len=len(y_train),
                         exog_future=exog_future_use,
-                        order=candidate_order,
                         horizon=horizon,
                     )
                     results.append(
@@ -463,6 +531,28 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
         ["commodity", "horizon", "rmse", "mae", "terminal_abs_error", "candidate_model"]
     ).reset_index(drop=True)
 
+    parameter_audit = pd.DataFrame(parameter_rows).sort_values(
+        ["commodity", "candidate_model", "train_end"],
+        kind="stable",
+    ).reset_index(drop=True)
+    parameter_audit_summary = (
+        parameter_audit.groupby(["commodity", "candidate_model", "variant"], dropna=False)
+        .agg(
+            fits=("train_end", "count"),
+            exog_column_count=("exog_column_count", "max"),
+            mean_nonzero_exog_coef_count=("nonzero_exog_coef_count", "mean"),
+            zero_exog_fit_rate=("all_exog_coef_zero", "mean"),
+            mean_abs_exog_coef=("mean_abs_exog_coef", "mean"),
+            max_abs_exog_coef=("max_abs_exog_coef", "max"),
+            mean_log_likelihood=("log_likelihood", "mean"),
+            mean_aic=("aic", "mean"),
+            mean_bic=("bic", "mean"),
+        )
+        .reset_index()
+        .sort_values(["commodity", "candidate_model"], kind="stable")
+        .reset_index(drop=True)
+    )
+
     dm_rows: list[dict[str, object]] = []
     dm_source = baseline_rows.rename(
         columns={
@@ -534,6 +624,8 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
             "benchmark_interval_calibration.csv",
             "benchmark_diebold_mariano.csv",
             "benchmark_ablation_scorecard.csv",
+            "benchmark_candidate_parameter_audit.csv",
+            "benchmark_candidate_parameter_audit_summary.csv",
         ],
     }
 
@@ -544,6 +636,8 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
     calibration_path = out_dir / "benchmark_interval_calibration.csv"
     dm_path = out_dir / "benchmark_diebold_mariano.csv"
     ablation_path = out_dir / "benchmark_ablation_scorecard.csv"
+    parameter_audit_path = out_dir / "benchmark_candidate_parameter_audit.csv"
+    parameter_audit_summary_path = out_dir / "benchmark_candidate_parameter_audit_summary.csv"
     metadata_path = out_dir / "benchmark_metadata.json"
 
     raw_df.to_csv(raw_path, index=False)
@@ -553,6 +647,8 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
     interval_calibration.to_csv(calibration_path, index=False)
     diebold_mariano.to_csv(dm_path, index=False)
     ablation_scorecard.to_csv(ablation_path, index=False)
+    parameter_audit.to_csv(parameter_audit_path, index=False)
+    parameter_audit_summary.to_csv(parameter_audit_summary_path, index=False)
     metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 
     return {
@@ -563,6 +659,8 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
         "calibration": calibration_path,
         "diebold_mariano": dm_path,
         "ablation": ablation_path,
+        "parameter_audit": parameter_audit_path,
+        "parameter_audit_summary": parameter_audit_summary_path,
         "metadata": metadata_path,
     }
 

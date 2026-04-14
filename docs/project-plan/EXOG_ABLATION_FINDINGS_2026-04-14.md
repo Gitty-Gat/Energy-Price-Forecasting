@@ -56,6 +56,9 @@ Observed metadata:
 - rows used: **3898**
 - evaluation windows: **17**
 - safe model exogenous columns after the fix: `HDD`, `CDD`, `hdd_3dma`, `cdd_3dma`, `sentiment_ng`, `sentiment_ol`
+- reproducible audit artifacts now emitted by the harness:
+  - `benchmark_candidate_parameter_audit.csv`
+  - `benchmark_candidate_parameter_audit_summary.csv`
 
 ---
 
@@ -126,7 +129,8 @@ That is the cleanest result in the run.
 
 Across all four commodity / horizon pairs:
 - `combined`, `weather_only`, `sentiment_only`, and `no_exogenous` landed on the same aggregate scorecard to rounding tolerance
-- direct parameter inspection on representative fitted combined models showed exogenous coefficients at **exactly 0.0** for both NG and OL
+- the new parameter-audit artifact shows a **zero-exogenous-fit rate of 1.00** for every candidate variant / commodity pair in the canonical run
+- direct parameter inspection and the saved audit both show exogenous coefficients at **exactly 0.0** for both NG and OL
 - no current exogenous variant earned complexity credit
 
 ### 2) The current exogenous lane is therefore not paying rent
@@ -138,6 +142,8 @@ Possible explanations:
 2. coefficient estimates are collapsing to zero under the current fitting setup
 3. the current implementation is technically fine, but the exogenous lane is not paying rent
 4. there may still be a modeling-path issue worth inspecting before drawing stronger causal conclusions
+
+One additional clue from the saved audit: the exogenous variants also fail to improve average information criteria relative to the no-exogenous version, so this is not just a prediction artifact. The fitted objective itself is not rewarding the extra features here.
 
 What this does **not** support is the story that the current weather/sentiment stack is obviously driving forecast edge.
 

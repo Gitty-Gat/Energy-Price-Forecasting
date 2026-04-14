@@ -80,6 +80,7 @@ The repo is considered leveled up when all of the following are true:
 - [x] Denser canonical benchmark pass recorded in `docs/project-plan/DENSER_BENCHMARK_FINDINGS_2026-04-14.md`.
 - [x] Exogenous leakage-prone columns (`RET_NG`, `RET_OL`, `is_future`) were removed from the model exogenous matrix in the forecast and benchmark paths.
 - [x] Canonical exogenous ablation pass recorded in `docs/project-plan/EXOG_ABLATION_FINDINGS_2026-04-14.md`.
+- [x] The benchmark harness now emits `benchmark_candidate_parameter_audit.csv` and `benchmark_candidate_parameter_audit_summary.csv` for candidate-fit integrity checks.
 - [x] The honest post-fix result is that the current candidate family loses aggregate RMSE / MAE to approved baselines, and the exogenous variants collapse to effectively identical scorecards.
 - [x] Local-only `mlruns/` and Hydra `outputs/` noise were cleaned during the slice.
 
@@ -105,7 +106,7 @@ The repo is considered leveled up when all of the following are true:
 
 ## Active focus order
 
-1. inspect why exogenous coefficients collapse to zero and why the exogenous variants are effectively identical
+1. explain why exogenous coefficients collapse to zero and decide whether to re-specify or temporarily prune the exogenous lane
 2. improve regime-aware evaluation and pressure-test candidate-vs-baseline claims
 3. tighten interval / uncertainty evaluation so coverage is not trivially saturated
 4. keep the repo clean of regenerated local-only artifacts while benchmark work continues
@@ -114,8 +115,8 @@ The repo is considered leveled up when all of the following are true:
 ## Immediate next slices
 
 1. **Exogenous diagnosis slice**
-   - Inspect why `combined`, `weather_only`, and `sentiment_only` produced the same aggregate results in the post-fix ablation run.
-   - Confirm whether exogenous coefficients are effectively doing nothing or whether another modeling-path issue remains.
+   - Use the new parameter-audit artifacts to explain why the exogenous coefficients collapse to zero across the canonical run.
+   - Decide whether the right next move is re-specification, scaling / regularization changes, or temporarily pruning the exogenous lane.
 2. **Interval / uncertainty slice**
    - Replace or augment the current terminal-only interval coverage artifact.
    - Make interval evaluation capable of distinguishing over-wide from genuinely well-calibrated uncertainty.

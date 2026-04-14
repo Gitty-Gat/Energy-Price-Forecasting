@@ -88,7 +88,7 @@ class TestBenchmarkSuite(unittest.TestCase):
                 )
             )
 
-            for expected in {"raw", "scorecard", "regime", "win_rate", "calibration", "diebold_mariano", "metadata"}:
+            for expected in {"raw", "scorecard", "regime", "win_rate", "calibration", "diebold_mariano", "parameter_audit", "parameter_audit_summary", "metadata"}:
                 self.assertTrue(paths[expected].exists(), expected)
 
             raw = pd.read_csv(paths["raw"])
@@ -97,6 +97,8 @@ class TestBenchmarkSuite(unittest.TestCase):
             win_rate = pd.read_csv(paths["win_rate"])
             calibration = pd.read_csv(paths["calibration"])
             diebold_mariano = pd.read_csv(paths["diebold_mariano"])
+            parameter_audit = pd.read_csv(paths["parameter_audit"])
+            parameter_audit_summary = pd.read_csv(paths["parameter_audit_summary"])
             metadata = json.loads(paths["metadata"].read_text(encoding="utf-8"))
 
             expected_models = {
@@ -119,11 +121,15 @@ class TestBenchmarkSuite(unittest.TestCase):
             self.assertIn("benchmark_interval_calibration.csv", metadata["artifacts"])
             self.assertIn("benchmark_diebold_mariano.csv", metadata["artifacts"])
             self.assertIn("benchmark_ablation_scorecard.csv", metadata["artifacts"])
+            self.assertIn("benchmark_candidate_parameter_audit.csv", metadata["artifacts"])
+            self.assertIn("benchmark_candidate_parameter_audit_summary.csv", metadata["artifacts"])
             self.assertGreater(metadata["windows_evaluated"], 0)
             self.assertTrue((scorecard["windows"] > 0).all())
             self.assertTrue((win_rate["candidate_win_rate"] >= 0.0).all())
             self.assertTrue((win_rate["candidate_win_rate"] <= 1.0).all())
             self.assertTrue((calibration["interval_calibration_error"] >= 0.0).all())
+            self.assertIn("nonzero_exog_coef_count", parameter_audit.columns)
+            self.assertIn("zero_exog_fit_rate", parameter_audit_summary.columns)
 
     def test_run_benchmark_suite_supports_candidate_ablation_variants(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -149,6 +155,8 @@ class TestBenchmarkSuite(unittest.TestCase):
             ablation = pd.read_csv(paths["ablation"])
             win_rate = pd.read_csv(paths["win_rate"])
             dm = pd.read_csv(paths["diebold_mariano"])
+            parameter_audit = pd.read_csv(paths["parameter_audit"])
+            parameter_audit_summary = pd.read_csv(paths["parameter_audit_summary"])
             expected_candidates = {
                 "candidate_arimax",
                 "candidate_arimax_weather_only",
@@ -162,6 +170,9 @@ class TestBenchmarkSuite(unittest.TestCase):
             self.assertIn("rmse_vs_best_baseline_ratio", ablation.columns)
             self.assertIn("candidate_model", win_rate.columns)
             self.assertIn("candidate_model", dm.columns)
+            self.assertTrue(expected_candidates.issubset(set(parameter_audit["candidate_model"])))
+            self.assertTrue(expected_candidates.issubset(set(parameter_audit_summary["candidate_model"])))
+            self.assertIn("all_exog_coef_zero", parameter_audit.columns)
 
     def test_run_benchmark_suite_avoids_irregular_index_sarimax_warnings(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
