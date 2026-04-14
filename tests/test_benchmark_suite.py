@@ -53,6 +53,23 @@ def _make_irregular_merged_csv(path: Path, n: int = 180) -> None:
     df.to_csv(path, index=False)
 
 
+def _make_constant_historical_exog_csv(path: Path, n: int = 180) -> None:
+    rng = np.random.default_rng(987)
+    dates = pd.date_range("2023-01-01", periods=n, freq="D")
+    df = pd.DataFrame(
+        {
+            "date": dates,
+            "PRICE_NG": np.exp(np.cumsum(rng.normal(0.0005, 0.012, size=n))) * 2.75,
+            "PRICE_OL": np.exp(np.cumsum(rng.normal(0.0003, 0.009, size=n))) * 74.0,
+            "HDD": np.zeros(n),
+            "CDD": np.zeros(n),
+            "sentiment_ng": np.zeros(n),
+            "sentiment_ol": np.zeros(n),
+        }
+    )
+    df.to_csv(path, index=False)
+
+
 class TestBenchmarkSuite(unittest.TestCase):
     def test_candidate_forecast_without_exog_respects_requested_horizon(self) -> None:
         rng = np.random.default_rng(777)
@@ -118,6 +135,9 @@ class TestBenchmarkSuite(unittest.TestCase):
             self.assertIn("dm_pvalue_mae", diebold_mariano.columns)
             self.assertEqual(sorted(metadata["models"]), sorted(expected_models))
             self.assertEqual(sorted(metadata["commodities"]), ["NG", "OL"])
+            self.assertEqual(sorted(metadata["exog_columns_requested"]), ["CDD", "HDD", "sentiment_ng", "sentiment_ol"])
+            self.assertEqual(sorted(metadata["exog_columns_retained"]), ["CDD", "HDD", "sentiment_ng", "sentiment_ol"])
+            self.assertEqual(metadata["exog_columns_dropped_constant"], [])
             self.assertIn("benchmark_interval_calibration.csv", metadata["artifacts"])
             self.assertIn("benchmark_diebold_mariano.csv", metadata["artifacts"])
             self.assertIn("benchmark_ablation_scorecard.csv", metadata["artifacts"])
@@ -173,6 +193,32 @@ class TestBenchmarkSuite(unittest.TestCase):
             self.assertTrue(expected_candidates.issubset(set(parameter_audit["candidate_model"])))
             self.assertTrue(expected_candidates.issubset(set(parameter_audit_summary["candidate_model"])))
             self.assertIn("all_exog_coef_zero", parameter_audit.columns)
+
+    def test_run_benchmark_suite_records_dropped_constant_exog_columns(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir_path = Path(tmpdir)
+            merged = tmpdir_path / "merged_constant_exog.csv"
+            outputs = tmpdir_path / "bench_constant_exog"
+            _make_constant_historical_exog_csv(merged)
+
+            paths = run_benchmark_suite(
+                BenchmarkConfig(
+                    merged=str(merged),
+                    outputs=str(outputs),
+                    horizons=[5],
+                    eval_step=15,
+                    min_train_size=90,
+                    seasonal_period=5,
+                    rolling_mean_window=15,
+                    candidate_variants=["combined", "weather_only", "sentiment_only", "no_exogenous"],
+                )
+            )
+            metadata = json.loads(paths["metadata"].read_text(encoding="utf-8"))
+            parameter_audit_summary = pd.read_csv(paths["parameter_audit_summary"])
+
+            self.assertEqual(sorted(metadata["exog_columns_dropped_constant"]), ["CDD", "HDD", "sentiment_ng", "sentiment_ol"])
+            self.assertEqual(metadata["exog_columns_retained"], [])
+            self.assertTrue((parameter_audit_summary["exog_column_count"] == 0).all())
 
     def test_run_benchmark_suite_avoids_irregular_index_sarimax_warnings(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

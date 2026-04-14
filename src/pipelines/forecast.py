@@ -92,6 +92,32 @@ def select_exog_variant_columns(columns: Sequence[str], variant: str) -> list[st
     raise ValueError(f"Unsupported exogenous variant: {variant}")
 
 
+def filter_usable_exog_columns(
+    exog: pd.DataFrame,
+    *,
+    constant_tol: float = 1e-12,
+) -> tuple[pd.DataFrame, list[str]]:
+    if exog.empty:
+        out = exog.copy()
+        out.attrs["dropped_constant_columns"] = []
+        out.attrs["requested_columns"] = list(exog.columns)
+        return out, []
+
+    kept: list[str] = []
+    dropped: list[str] = []
+    for col in exog.columns:
+        series = pd.Series(exog[col], dtype=float)
+        if float((series.max() - series.min())) <= constant_tol:
+            dropped.append(str(col))
+        else:
+            kept.append(str(col))
+
+    out = exog[kept].copy() if kept else pd.DataFrame(index=exog.index)
+    out.attrs["dropped_constant_columns"] = dropped
+    out.attrs["requested_columns"] = list(exog.columns)
+    return out, dropped
+
+
 def load_and_clean_merged(
     merged_path: Path,
     ng_col: str,
@@ -130,9 +156,10 @@ def load_and_clean_merged(
     historical = historical.dropna(subset=["ng_return", "ol_return"])
 
     exog_cols = select_model_exog_columns(historical.columns, ng_col=ng_col, ol_col=ol_col)
-    exog = historical[exog_cols].copy().ffill().bfill().fillna(0.0).astype(float)
+    raw_exog = historical[exog_cols].copy().ffill().bfill().fillna(0.0).astype(float)
+    exog, dropped_constant_exog = filter_usable_exog_columns(raw_exog)
 
-    future_rows = df.loc[~historical_mask, exog_cols].copy() if exog_cols else pd.DataFrame(index=df.index[~historical_mask])
+    future_rows = df.loc[~historical_mask, exog.columns].copy() if len(exog.columns) else pd.DataFrame(index=df.index[~historical_mask])
     if not future_rows.empty:
         future_exog = (
             pd.concat([exog.tail(1), future_rows], axis=0)
@@ -144,6 +171,10 @@ def load_and_clean_merged(
         )
     else:
         future_exog = pd.DataFrame(columns=exog.columns)
+    exog.attrs["dropped_constant_columns"] = dropped_constant_exog
+    exog.attrs["requested_columns"] = exog_cols
+    future_exog.attrs["dropped_constant_columns"] = dropped_constant_exog
+    future_exog.attrs["requested_columns"] = exog_cols
 
     ng_returns = historical["ng_return"].astype(float)
     ol_returns = historical["ol_return"].astype(float)
@@ -245,6 +276,9 @@ def run_forecast(config: ForecastConfig) -> None:
         "config": asdict(config),
         "config_path": str(merged_path),
         "rows_used": int(len(df)),
+        "exog_columns_requested": list(exog.attrs.get("requested_columns", exog.columns.tolist())),
+        "exog_columns_retained": exog.columns.tolist(),
+        "exog_columns_dropped_constant": list(exog.attrs.get("dropped_constant_columns", [])),
     }
     (out_dir / "run_metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
     if log_forecast_run is not None:

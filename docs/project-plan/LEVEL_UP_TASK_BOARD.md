@@ -82,6 +82,7 @@ The repo is considered leveled up when all of the following are true:
 - [x] Canonical exogenous ablation pass recorded in `docs/project-plan/EXOG_ABLATION_FINDINGS_2026-04-14.md`.
 - [x] The benchmark harness now emits `benchmark_candidate_parameter_audit.csv` and `benchmark_candidate_parameter_audit_summary.csv` for candidate-fit integrity checks.
 - [x] The honest post-fix result is that the current candidate family loses aggregate RMSE / MAE to approved baselines, and the exogenous variants collapse to effectively identical scorecards.
+- [x] The deeper integrity finding is that the canonical merged dataset currently yields no usable historical exogenous columns after constant-column filtering; all requested weather/sentiment columns are dropped in the canonical run.
 - [x] Local-only `mlruns/` and Hydra `outputs/` noise were cleaned during the slice.
 
 ---
@@ -106,7 +107,7 @@ The repo is considered leveled up when all of the following are true:
 
 ## Active focus order
 
-1. explain why exogenous coefficients collapse to zero and decide whether to re-specify or temporarily prune the exogenous lane
+1. fix or explain the merge / ingest path that produces constant historical exogenous columns in the canonical dataset
 2. improve regime-aware evaluation and pressure-test candidate-vs-baseline claims
 3. tighten interval / uncertainty evaluation so coverage is not trivially saturated
 4. keep the repo clean of regenerated local-only artifacts while benchmark work continues
@@ -114,9 +115,9 @@ The repo is considered leveled up when all of the following are true:
 
 ## Immediate next slices
 
-1. **Exogenous diagnosis slice**
-   - Use the new parameter-audit artifacts to explain why the exogenous coefficients collapse to zero across the canonical run.
-   - Decide whether the right next move is re-specification, scaling / regularization changes, or temporarily pruning the exogenous lane.
+1. **Exogenous data-integrity slice**
+   - Trace why the canonical merged dataset produces constant historical weather/sentiment columns and therefore drops all requested exogenous features before fitting.
+   - Decide whether the right next move is fixing upstream exogenous data coverage, re-specifying the candidate, or temporarily pruning the exogenous lane.
 2. **Interval / uncertainty slice**
    - Replace or augment the current terminal-only interval coverage artifact.
    - Make interval evaluation capable of distinguishing over-wide from genuinely well-calibrated uncertainty.

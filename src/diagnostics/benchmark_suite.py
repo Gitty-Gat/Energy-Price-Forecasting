@@ -614,7 +614,9 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
         "models": sorted(raw_df["model"].unique().tolist()),
         "candidate_variants": candidate_variants,
         "candidate_models": sorted(candidate_models),
-        "exog_columns": exog.columns.tolist(),
+        "exog_columns_requested": list(exog.attrs.get("requested_columns", exog.columns.tolist())),
+        "exog_columns_retained": exog.columns.tolist(),
+        "exog_columns_dropped_constant": list(exog.attrs.get("dropped_constant_columns", [])),
         "commodities": sorted(raw_df["commodity"].unique().tolist()),
         "artifacts": [
             "benchmark_window_metrics.csv",

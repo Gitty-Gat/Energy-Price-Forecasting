@@ -18,8 +18,9 @@ After removing those leakage-prone columns and running the approved ablation var
 
 - the current candidate model **does not beat the approved baselines on aggregate RMSE / MAE**
 - all four candidate variants are **effectively identical** on the aggregate scorecard
-- direct parameter inspection on representative fitted models showed the exogenous coefficients collapsing to **exactly zero**, which strongly suggests the current exogenous lane is not contributing in the present specification
-- the project should **not spend Databento credits yet** because the current bottleneck looks like model/specification quality, not obvious data starvation
+- the stronger reason is now clear: the canonical merged dataset currently provides **no usable historical exogenous columns** to the candidate after integrity filtering
+- all six requested exogenous columns were dropped as constant on the historical sample used for fitting
+- the project should **not spend Databento credits yet** because the current bottleneck looks like data integrity / availability plus model specification, not obvious premium-data scarcity
 
 That is a much less flattering result than the pre-fix benchmark memos.
 It is also more useful.
@@ -55,7 +56,10 @@ python src/diagnostics/benchmark_suite.py \
 Observed metadata:
 - rows used: **3898**
 - evaluation windows: **17**
-- safe model exogenous columns after the fix: `HDD`, `CDD`, `hdd_3dma`, `cdd_3dma`, `sentiment_ng`, `sentiment_ol`
+- requested model exogenous columns: `HDD`, `CDD`, `hdd_3dma`, `cdd_3dma`, `sentiment_ng`, `sentiment_ol`
+- retained model exogenous columns after integrity filtering: **none**
+- dropped constant historical exogenous columns: `HDD`, `CDD`, `hdd_3dma`, `cdd_3dma`, `sentiment_ng`, `sentiment_ol`
+- direct data inspection showed the weather fields are only nonzero on future rows near the tail of the file, while sentiment is zero throughout the merged dataset
 - reproducible audit artifacts now emitted by the harness:
   - `benchmark_candidate_parameter_audit.csv`
   - `benchmark_candidate_parameter_audit_summary.csv`
@@ -129,21 +133,21 @@ That is the cleanest result in the run.
 
 Across all four commodity / horizon pairs:
 - `combined`, `weather_only`, `sentiment_only`, and `no_exogenous` landed on the same aggregate scorecard to rounding tolerance
-- the new parameter-audit artifact shows a **zero-exogenous-fit rate of 1.00** for every candidate variant / commodity pair in the canonical run
-- direct parameter inspection and the saved audit both show exogenous coefficients at **exactly 0.0** for both NG and OL
-- no current exogenous variant earned complexity credit
+- the reason is now explicit in the saved metadata and parameter audit: **all requested historical exogenous columns were dropped as constant before fitting**
+- the parameter-audit summary therefore shows `exog_column_count = 0` and `zero_exog_fit_rate = 1.00` for every candidate variant / commodity pair in the canonical run
+- no current exogenous variant earned complexity credit because, operationally, they all collapsed to the same no-exogenous model
 
 ### 2) The current exogenous lane is therefore not paying rent
 
 That is suspicious in the useful sense.
 
 Possible explanations:
-1. the current exogenous features genuinely add almost no signal in the present ARIMAX specification
-2. coefficient estimates are collapsing to zero under the current fitting setup
+1. the merged exogenous dataset is not carrying usable historical weather/sentiment coverage into the canonical fit sample
+2. the current exogenous features genuinely add almost no signal even when present
 3. the current implementation is technically fine, but the exogenous lane is not paying rent
 4. there may still be a modeling-path issue worth inspecting before drawing stronger causal conclusions
 
-One additional clue from the saved audit: the exogenous variants also fail to improve average information criteria relative to the no-exogenous version, so this is not just a prediction artifact. The fitted objective itself is not rewarding the extra features here.
+One additional clue from the saved audit: after integrity filtering, the exogenous variants do not merely fail to help — they do not survive as usable fitted covariates at all in the canonical run.
 
 What this does **not** support is the story that the current weather/sentiment stack is obviously driving forecast edge.
 
@@ -215,8 +219,8 @@ After this slice, the repo has to deal with a less flattering and more actionabl
 
 ## Recommended next actions
 
-1. **Treat the current candidate family as effectively exogenous-free in practice** until the model can demonstrate non-zero exogenous contribution under honest benchmarking.
-2. **Inspect why the fitted exogenous coefficients collapse to zero** before investing more belief in the current weather/sentiment stack.
+1. **Treat the current candidate family as effectively exogenous-free in practice** until the merged dataset actually provides usable historical exogenous coverage under honest filtering.
+2. **Inspect the merge / ingest path that produced constant-zero historical exogenous columns** before investing more belief in the current weather/sentiment stack.
 3. **Tighten interval evaluation** so coverage is not mostly a saturated terminal artifact.
 4. **Do not spend Databento credits yet** unless a later post-fix benchmark suggests the remaining gap is data-limited rather than model-limited.
 5. **Mark pre-fix benchmark memos as superseded** anywhere they might be mistaken for current truth.
@@ -229,7 +233,7 @@ The exogenous ablation slice did not validate the current exogenous story.
 
 It did something better:
 - removed a misleading source of benchmark optimism
-- showed that the exogenous variants are functionally indistinguishable in the current setup
+- showed that the exogenous variants are functionally indistinguishable because the canonical merged dataset currently yields no usable historical exogenous columns
 - showed that the candidate family still loses to simple approved baselines on the metrics that matter most
 
 That is painful, but it is exactly the kind of pain that saves time later.

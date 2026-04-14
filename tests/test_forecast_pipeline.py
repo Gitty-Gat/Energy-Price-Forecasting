@@ -78,6 +78,44 @@ class TestForecastPipeline(unittest.TestCase):
             self.assertNotIn("RET_OL", exog.columns)
             self.assertNotIn("is_future", exog.columns)
 
+    def test_load_and_clean_merged_drops_constant_historical_exog_columns(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            merged = Path(tmpdir) / "merged_constant_exog.csv"
+            rng = np.random.default_rng(333)
+            dates = pd.date_range("2024-01-01", periods=20, freq="D")
+            historical = pd.DataFrame(
+                {
+                    "date": dates,
+                    "PRICE_NG": np.exp(np.cumsum(rng.normal(0.0, 0.01, size=20))) * 2.5,
+                    "PRICE_OL": np.exp(np.cumsum(rng.normal(0.0, 0.008, size=20))) * 75.0,
+                    "HDD": [0.0] * 20,
+                    "CDD": [0.0] * 20,
+                    "sentiment_ng": [0.0] * 20,
+                    "sentiment_ol": [0.0] * 20,
+                }
+            )
+            future = pd.DataFrame(
+                {
+                    "date": pd.date_range(dates[-1] + pd.Timedelta(days=1), periods=2, freq="D"),
+                    "PRICE_NG": [np.nan, np.nan],
+                    "PRICE_OL": [np.nan, np.nan],
+                    "HDD": [12.0, 13.0],
+                    "CDD": [1.0, 1.0],
+                    "sentiment_ng": [0.0, 0.0],
+                    "sentiment_ol": [0.0, 0.0],
+                }
+            )
+            pd.concat([historical, future], ignore_index=True).to_csv(merged, index=False)
+
+            _, _, _, exog, future_exog, _ = load_and_clean_merged(merged, "PRICE_NG", "PRICE_OL")
+
+            self.assertEqual(list(exog.columns), [])
+            self.assertEqual(list(future_exog.columns), [])
+            self.assertEqual(
+                exog.attrs.get("dropped_constant_columns"),
+                ["HDD", "CDD", "sentiment_ng", "sentiment_ol"],
+            )
+
     def test_load_and_run_forecast_with_future_exog_rows(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             merged = Path(tmpdir) / "merged_future.csv"
@@ -129,6 +167,7 @@ class TestForecastPipeline(unittest.TestCase):
             self.assertTrue(out_csv.exists())
             self.assertEqual(len(pd.read_csv(out_csv)), 3)
             self.assertEqual(meta["rows_used"], 11)
+            self.assertEqual(sorted(meta["exog_columns_retained"]), ["CDD", "HDD"])
 
     def test_run_forecast_writes_outputs_and_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -154,6 +193,8 @@ class TestForecastPipeline(unittest.TestCase):
             meta_payload = json.loads(meta.read_text(encoding="utf-8"))
             self.assertEqual(meta_payload["seed"], 7)
             self.assertIn("git_hash", meta_payload)
+            self.assertEqual(sorted(meta_payload["exog_columns_retained"]), ["CDD", "HDD"])
+            self.assertEqual(meta_payload["exog_columns_dropped_constant"], [])
 
             df = pd.read_csv(out_csv)
             self.assertEqual(len(df), 5)
@@ -202,6 +243,9 @@ class TestForecastPipeline(unittest.TestCase):
             messages = [str(w.message) for w in caught]
             self.assertFalse(any("no associated frequency information" in message for message in messages))
             self.assertFalse(any("No supported index is available" in message for message in messages))
+
+            meta = json.loads((out / "run_metadata.json").read_text(encoding="utf-8"))
+            self.assertEqual(sorted(meta["exog_columns_retained"]), ["CDD", "HDD"])
 
     def test_forecast_script_runs_from_repo_root(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
