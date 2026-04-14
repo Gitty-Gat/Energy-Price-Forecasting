@@ -38,60 +38,18 @@ The repo is considered leveled up when all of the following are true:
 
 ## Now
 
-### Phase 0 — Usable today
-- [x] Add `.gitignore` for generated data, results, caches, editor junk, and local env files.
-- [x] Remove tracked bulky generated artifacts from git index where appropriate; preserve only code/docs/fixtures/reference essentials.
-- [x] Add `pyproject.toml` with project metadata and core dependencies.
-- [x] Add `requirements.txt` compatibility export if needed.
-- [x] Add a canonical entrypoint at `src/pipelines/forecast.py`.
-- [x] Refactor live forecast flow so nothing imports from `src/pipelines/archive/`.
-- [x] Make `energy_pipeline_forecast_v2.3.py` a thin wrapper or retire it in favor of the canonical entrypoint.
-- [x] Add seeded RNG plumbing anywhere jitter/randomness exists.
-- [x] Log config path / seed / git hash / timestamp in forecast runs.
+### Repo status summary
+- [x] Phase 0 — usable-today cleanup and canonical forecast entrypoint are complete.
+- [x] Phase 1 — Hydra/config/schema/test hardening is complete.
+- [x] Phase 2 implementation work is locally complete for DVC, Docker, MLflow, docs, and API smoke.
+- [ ] Phase 2 governance evidence is still incomplete because a real GitHub Actions run has not been observed from this environment.
 
-### Exit criteria for Phase 0
-- [x] Fresh install path is documented.
-- [x] One forecast command works from the canonical entrypoint.
-- [x] No live archive imports remain.
-- [x] Randomized fit behavior is reproducible.
+### What remains truly open
+- [ ] Observe and record a real GitHub Actions run for the current workflow.
+- [ ] Verify whether authenticated remote push is available from this environment.
+- [ ] Keep local-only generated artifacts out of git while waiting on external CI evidence.
 
----
-
-## Next
-
-### Phase 1 — Research-grade polish
-- [x] Add `conf/` Hydra config tree.
-- [x] Replace argparse sprawl in primary workflows with Hydra-backed configs.
-- [x] Add structured config/dataclass objects for data/model/backtest/runtime settings.
-- [x] Add `pandera` schemas for raw price, weather, sentiment, merged exog, forecasts, and backtests.
-- [x] Refactor fragile column detection into explicit schema-aware loaders.
-- [x] Refactor `src/models/vecm_garch.py` to avoid mutable spec drift.
-- [x] Make VECM lag/rank fallback explicit and logged, not silent mutation.
-- [x] Verify and document forecast semantics for VECM outputs (levels vs differences).
-- [x] Remove duplicate imports / cleanup global fallback state in modeling modules.
-- [x] Replace layout-only test coverage with real pytest suite and small fixtures.
-- [x] Add tests for ingestion, merging, schema validation, ARIMAX smoke, VECM smoke, and deterministic seeding.
-
-### Exit criteria for Phase 1
-- [x] Focused fixture-sized test suite passes in the local environment (`pytest` in dev environments; stdlib `unittest` fallback is acceptable for constrained automation verification).
-- [x] Config changes do not require code edits.
-- [x] VECM behavior is deterministic and auditable.
-- [x] Invalid input schemas fail fast.
-
----
-
-## Later
-
-### Phase 2 — Production/community ready
-- [x] Add DVC and `dvc.yaml` stages for ingest → features → forecast → diagnostics → backtest.
-- [x] Move large mutable data/results out of normal git tracking where appropriate.
-- [x] Add GitHub Actions CI for lint, tests, docs build, and minimal smoke forecast.
-- [x] Add `Dockerfile` and `.dockerignore`.
-- [x] Add MLflow experiment tracking.
-- [x] Add MkDocs site and usage/modeling/data docs.
-- [x] Add FastAPI app with health + forecast run endpoints.
-
-### Exit criteria for Phase 2
+### Exit criteria still governing the board
 - [x] `dvc repro` works.
 - [ ] CI is green.
 - [x] Docker build succeeds.
@@ -101,7 +59,27 @@ The repo is considered leveled up when all of the following are true:
 
 ---
 
-## Future enhancements
+## Next
+
+### Best next slices for implementation delegates
+1. **Capture external CI evidence rather than re-running local checks**
+   - The repo already has local CI-equivalent evidence in `docs/project-plan/VERIFICATION_MATRIX.md`.
+   - The missing evidence is remote: an observed GitHub Actions run URL / commit SHA / conclusion for `.github/workflows/ci.yml`.
+   - Until that exists, leave `CI is green` unchecked.
+2. **Verify push-path reality explicitly**
+   - Remote `origin` is configured, but authenticated push is still unverified from this environment.
+   - If a delegate has credentials, do one small docs-only push-safe slice and record the resulting push evidence.
+   - If credentials are absent, treat that as an external blocker instead of mutating roadmap docs repeatedly.
+3. **Do hygiene-only cleanup when no external evidence can be obtained**
+   - Remove stray disposable local artifacts if they reappear (`mlruns/`, Hydra `outputs/`, caches).
+   - Avoid committing regenerated data/results while DVC owns those artifacts.
+4. **Refresh `.venv` only when a missing tool blocks a needed local check**
+   - The stale-virtualenv issue is no longer the primary roadmap bottleneck.
+   - Recreate or refresh `.venv` from `requirements.txt` only if a delegate actually needs to run a local verification and finds missing tools.
+
+---
+
+## Later
 
 ### Phase 3 — Benchmark repo
 - [ ] Add multivariate volatility roadmap (DCC or similar).
@@ -114,26 +92,29 @@ The repo is considered leveled up when all of the following are true:
 
 ## Active focus order
 
-1. normalize the local verification environment when `.venv` drifts from `requirements.txt`
-2. obtain or inspect actual GitHub Actions run evidence once repo push/auth is available
-3. keep the repo clean of regenerated local-only artifacts while waiting on external CI evidence
-4. defer Phase 3 benchmark/community work until Phase 2 CI evidence is actually verified
+1. obtain or inspect actual GitHub Actions run evidence
+2. verify authenticated remote push capability or record that it remains unavailable
+3. keep the repo clean of regenerated local-only artifacts while waiting on external evidence
+4. refresh `.venv` only on demand when a needed local verification is blocked by tool drift
+5. defer Phase 3 benchmark/community work until Phase 2 CI evidence is actually verified
 
 ## Immediate next slices
 
-1. **Normalize local verification bootstrap when the repo-local `.venv` is stale**
-   - As of the latest phase review, the checked-in workflow file still expects `pytest -q`, and `requirements.txt` still pins `pytest==8.3.2`, but the existing repo-local `.venv` in this environment did not have `pytest` installed.
-   - Treat this as environment drift, not a product-code regression: if `pytest` is missing, refresh the environment with the bootstrap commands from `docs/project-plan/VERIFICATION_MATRIX.md` before judging the repo state.
-   - Prefer one small hygiene slice (for example, docs or automation guidance) over repeated failed verification attempts against a stale virtualenv.
-2. **Obtain actual GitHub Actions run evidence**
-   - The local CI-equivalent workflow now passes in a fresh temporary virtualenv, but `CI is green` should remain unchecked until an actual workflow run can be inspected after push/auth is available.
-   - If access is unchanged, do not churn the repo with repeated timestamp-only blocker commits; prefer updating `docs/project-plan/BLOCKERS.md` only when the evidence meaningfully changes.
-3. **Keep mutable artifacts out of Git**
+1. **External CI evidence capture slice**
+   - Inspect the most recent real GitHub Actions run for `.github/workflows/ci.yml`.
+   - Record the run URL, commit SHA, workflow conclusion, and any failing job name in `docs/project-plan/BLOCKERS.md` or this board.
+   - Only mark `CI is green` complete after that evidence exists.
+2. **Push-path verification slice**
+   - Confirm whether this environment can perform an authenticated `git push` to `origin`.
+   - If push works, record that fact and prefer shipping a small docs-only change that improves the roadmap/governance state.
+   - If push does not work, record the exact failure mode once and treat it as an external blocker.
+3. **Disposable-artifact hygiene slice**
    - Follow `docs/project-plan/DATA_POLICY.md` as the source of truth for Git-vs-DVC ownership.
-   - Delete stray local-only `mlruns/` or Hydra `outputs/` directories if they reappear; do not commit them.
+   - Delete stray local-only `mlruns/`, Hydra `outputs/`, or cache directories if they appear; do not commit them.
    - Do not re-add generated `data/processed/` or `results/` outputs to SCM while DVC stages own them.
-4. **Phase 3 only after Phase 2 evidence is complete**
-   - Benchmark/community work stays lower priority until actual CI evidence exists.
+4. **Contingent local-env refresh slice**
+   - If a delegate actually needs to run local verification and `.venv` is missing tools such as `pytest`, refresh it using `docs/project-plan/VERIFICATION_MATRIX.md`.
+   - Do not treat missing tools in a stale local virtualenv as a repo-code regression.
 
 ---
 
@@ -156,10 +137,11 @@ When the automation session runs, it should:
 ## Dependency / environment notes
 
 - Use the repo-local `.venv` for local verification; the bare system interpreter is not sufficient for the scientific stack.
+- The primary dependency bottleneck is now external evidence availability, not local code scaffolding.
 - If the existing `.venv` is missing expected tools such as `pytest`, treat that as local environment drift and refresh it from `requirements.txt` (or recreate it) before interpreting verification failures as repo regressions.
 - Exact locally verified commands and evidence live in `docs/project-plan/VERIFICATION_MATRIX.md`.
 - Current active blockers live in `docs/project-plan/BLOCKERS.md`.
-- Local-only experiment artifacts such as `mlruns/` and Hydra `outputs/` should be treated as disposable workspace noise, not roadmap progress.
+- Local-only experiment artifacts such as `mlruns/`, Hydra `outputs/`, `.pytest_cache`, and `__pycache__` directories should be treated as disposable workspace noise, not roadmap progress.
 - Do not mark external CI/push-dependent items complete without external evidence.
 
 ---
