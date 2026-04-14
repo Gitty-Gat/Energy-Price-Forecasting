@@ -9,6 +9,7 @@ from typing import Iterable, Optional
 
 import numpy as np
 import pandas as pd
+from scipy import stats
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 
 if __package__ in {None, ""}:
@@ -182,6 +183,7 @@ def _evaluate_model(
     terminal_actual = float(actual_prices[-1])
     terminal_pred = float(predicted_prices[-1])
     terminal_abs_error = abs(terminal_pred - terminal_actual)
+    terminal_sq_error = float((terminal_pred - terminal_actual) ** 2)
 
     return {
         "train_end": str(train_end.date()),
@@ -194,9 +196,28 @@ def _evaluate_model(
         "directional_accuracy": _directional_accuracy(predicted_returns, actual_returns),
         "interval_coverage": _terminal_interval_coverage(terminal_actual, float(lower_prices[-1]), float(upper_prices[-1])),
         "terminal_abs_error": float(terminal_abs_error),
+        "terminal_sq_error": terminal_sq_error,
         "terminal_actual": terminal_actual,
         "terminal_predicted": terminal_pred,
     }
+
+
+def _diebold_mariano(loss_candidate: pd.Series, loss_baseline: pd.Series) -> tuple[float, float]:
+    candidate = pd.Series(loss_candidate, dtype=float).dropna().reset_index(drop=True)
+    baseline = pd.Series(loss_baseline, dtype=float).dropna().reset_index(drop=True)
+    n = min(len(candidate), len(baseline))
+    if n < 3:
+        return float("nan"), float("nan")
+
+    d = baseline.iloc[:n] - candidate.iloc[:n]
+    mean_d = float(d.mean())
+    var_d = float(d.var(ddof=1))
+    if not np.isfinite(var_d) or var_d <= 0:
+        return float("nan"), float("nan")
+
+    stat = mean_d / np.sqrt(var_d / n)
+    p_value = 2.0 * (1.0 - stats.t.cdf(abs(stat), df=n - 1))
+    return float(stat), float(p_value)
 
 
 def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
@@ -341,24 +362,108 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
         .reset_index(drop=True)
     )
 
+    interval_calibration = (
+        raw_df.groupby(["commodity", "horizon", "model"], dropna=False)
+        .agg(
+            windows=("train_end", "count"),
+            observed_interval_coverage=("interval_coverage", "mean"),
+        )
+        .reset_index()
+    )
+    interval_calibration["nominal_interval_coverage"] = 0.95
+    interval_calibration["interval_calibration_error"] = (
+        interval_calibration["observed_interval_coverage"] - interval_calibration["nominal_interval_coverage"]
+    ).abs()
+    interval_calibration = interval_calibration.sort_values(
+        ["commodity", "horizon", "interval_calibration_error", "model"]
+    ).reset_index(drop=True)
+
+    dm_rows: list[dict[str, object]] = []
+    candidate_rows = raw_df.loc[
+        raw_df["model"] == "candidate_arimax",
+        ["commodity", "horizon", "regime", "train_end", "rmse", "mae", "terminal_sq_error", "terminal_abs_error"],
+    ].rename(
+        columns={
+            "rmse": "candidate_rmse",
+            "mae": "candidate_mae",
+            "terminal_sq_error": "candidate_terminal_sq_error",
+            "terminal_abs_error": "candidate_terminal_abs_error",
+        }
+    )
+    baseline_rows = raw_df.loc[
+        raw_df["model"] != "candidate_arimax",
+        ["commodity", "horizon", "regime", "train_end", "model", "rmse", "mae", "terminal_sq_error", "terminal_abs_error"],
+    ].rename(
+        columns={
+            "rmse": "baseline_rmse",
+            "mae": "baseline_mae",
+            "terminal_sq_error": "baseline_terminal_sq_error",
+            "terminal_abs_error": "baseline_terminal_abs_error",
+        }
+    )
+    dm_source = baseline_rows.merge(candidate_rows, on=["commodity", "horizon", "regime", "train_end"], how="inner")
+    for keys, group in dm_source.groupby(["commodity", "horizon", "regime", "model"], dropna=False):
+        commodity, horizon, regime, model = keys
+        rmse_stat, rmse_p = _diebold_mariano(group["candidate_rmse"], group["baseline_rmse"])
+        mae_stat, mae_p = _diebold_mariano(group["candidate_mae"], group["baseline_mae"])
+        term_sq_stat, term_sq_p = _diebold_mariano(group["candidate_terminal_sq_error"], group["baseline_terminal_sq_error"])
+        term_abs_stat, term_abs_p = _diebold_mariano(group["candidate_terminal_abs_error"], group["baseline_terminal_abs_error"])
+        dm_rows.append(
+            {
+                "commodity": commodity,
+                "horizon": horizon,
+                "regime": regime,
+                "model": model,
+                "windows": int(len(group)),
+                "candidate_mean_rmse": float(group["candidate_rmse"].mean()),
+                "baseline_mean_rmse": float(group["baseline_rmse"].mean()),
+                "candidate_mean_mae": float(group["candidate_mae"].mean()),
+                "baseline_mean_mae": float(group["baseline_mae"].mean()),
+                "dm_stat_rmse": rmse_stat,
+                "dm_pvalue_rmse": rmse_p,
+                "dm_stat_mae": mae_stat,
+                "dm_pvalue_mae": mae_p,
+                "dm_stat_terminal_sq_error": term_sq_stat,
+                "dm_pvalue_terminal_sq_error": term_sq_p,
+                "dm_stat_terminal_abs_error": term_abs_stat,
+                "dm_pvalue_terminal_abs_error": term_abs_p,
+            }
+        )
+    diebold_mariano = pd.DataFrame(dm_rows).sort_values(
+        ["commodity", "horizon", "regime", "dm_pvalue_rmse", "model"],
+        na_position="last",
+    ).reset_index(drop=True)
+
     metadata = {
         "config": asdict(config),
         "rows_used": int(len(df)),
         "windows_evaluated": int(raw_df["train_end"].nunique()),
         "models": sorted(raw_df["model"].unique().tolist()),
         "commodities": sorted(raw_df["commodity"].unique().tolist()),
+        "artifacts": [
+            "benchmark_window_metrics.csv",
+            "benchmark_scorecard.csv",
+            "benchmark_scorecard_by_regime.csv",
+            "benchmark_candidate_win_rate_by_regime.csv",
+            "benchmark_interval_calibration.csv",
+            "benchmark_diebold_mariano.csv",
+        ],
     }
 
     raw_path = out_dir / "benchmark_window_metrics.csv"
     scorecard_path = out_dir / "benchmark_scorecard.csv"
     regime_path = out_dir / "benchmark_scorecard_by_regime.csv"
     win_rate_path = out_dir / "benchmark_candidate_win_rate_by_regime.csv"
+    calibration_path = out_dir / "benchmark_interval_calibration.csv"
+    dm_path = out_dir / "benchmark_diebold_mariano.csv"
     metadata_path = out_dir / "benchmark_metadata.json"
 
     raw_df.to_csv(raw_path, index=False)
     scorecard.to_csv(scorecard_path, index=False)
     regime_scorecard.to_csv(regime_path, index=False)
     win_rate.to_csv(win_rate_path, index=False)
+    interval_calibration.to_csv(calibration_path, index=False)
+    diebold_mariano.to_csv(dm_path, index=False)
     metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 
     return {
@@ -366,6 +471,8 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
         "scorecard": scorecard_path,
         "regime": regime_path,
         "win_rate": win_rate_path,
+        "calibration": calibration_path,
+        "diebold_mariano": dm_path,
         "metadata": metadata_path,
     }
 

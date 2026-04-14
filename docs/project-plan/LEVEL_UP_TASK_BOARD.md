@@ -45,9 +45,11 @@ The repo is considered leveled up when all of the following are true:
 - [ ] Phase 2 governance evidence is still incomplete because a real GitHub Actions run has not been observed from this environment.
 
 ### What remains truly open
+- [x] Verify whether authenticated remote push is available from this environment.
+- [ ] Run denser benchmark coverage on the canonical 5-day and 20-day horizons.
+- [ ] Add exogenous ablation runs (weather-only, sentiment-only, combined, no-exogenous).
+- [ ] Keep local-only generated artifacts out of git while working through the benchmark lane.
 - [ ] Observe and record a real GitHub Actions run for the current workflow.
-- [ ] Verify whether authenticated remote push is available from this environment.
-- [ ] Keep local-only generated artifacts out of git while waiting on external CI evidence.
 
 ### Exit criteria still governing the board
 - [x] `dvc repro` works.
@@ -62,20 +64,18 @@ The repo is considered leveled up when all of the following are true:
 ## Next
 
 ### Best next slices for implementation delegates
-1. **Capture external CI evidence rather than re-running local checks**
-   - The repo already has local CI-equivalent evidence in `docs/project-plan/VERIFICATION_MATRIX.md`.
-   - The missing evidence is remote: an observed GitHub Actions run URL / commit SHA / conclusion for `.github/workflows/ci.yml`.
-   - Until that exists, leave `CI is green` unchecked.
-2. **Verify push-path reality explicitly**
-   - Remote `origin` is configured, but authenticated push is still unverified from this environment.
-   - If a delegate has credentials, do one small docs-only push-safe slice and record the resulting push evidence.
-   - If credentials are absent, treat that as an external blocker instead of mutating roadmap docs repeatedly.
-3. **Do hygiene-only cleanup when no external evidence can be obtained**
-   - Remove stray disposable local artifacts if they reappear (`mlruns/`, Hydra `outputs/`, caches).
-   - Avoid committing regenerated data/results while DVC owns those artifacts.
-4. **Refresh `.venv` only when a missing tool blocks a needed local check**
-   - The stale-virtualenv issue is no longer the primary roadmap bottleneck.
-   - Recreate or refresh `.venv` from `requirements.txt` only if a delegate actually needs to run a local verification and finds missing tools.
+1. **Run denser benchmark coverage on the approved canonical horizons**
+   - The benchmark lane is now the governing priority.
+   - Increase window coverage for 5-day and 20-day NG/oil comparisons so the current edge estimate is harder to fake.
+   - Keep generated outputs local unless a durable findings memo is written from them.
+2. **Add exogenous ablation analysis**
+   - Compare weather-only, sentiment-only, combined, and no-exogenous variants.
+   - Use the benchmark harness outputs to decide whether exogenous complexity is paying rent.
+3. **Tighten regime-aware evaluation artifacts**
+   - Current regime slicing is a useful first pass, not the final taxonomy.
+   - Improve stress/calm and seasonal regime labeling only if it yields more decision-relevant evaluation.
+4. **Capture external CI evidence opportunistically, not as the controlling priority**
+   - External CI evidence still matters, but it is not the main strategic bottleneck now that the benchmark lane is approved and active.
 
 ---
 
@@ -84,42 +84,41 @@ The repo is considered leveled up when all of the following are true:
 ### Phase 3 — Benchmark repo
 - [ ] Add multivariate volatility roadmap (DCC or similar).
 - [x] Add benchmark suite vs naive/random-walk/seasonal baselines.
-- [ ] Add Diebold-Mariano tests and interval calibration monitoring.
+- [x] Add Diebold-Mariano tests and interval calibration monitoring.
 - [ ] Add contribution guide, release notes, issue templates, and public roadmap.
 - [ ] Consider PyPI packaging and public methodology note.
 
 ### Benchmark lane notes
 - [x] Canonical evaluation contract is now explicitly documented in `docs/project-plan/CANONICAL_EVALUATION_CONTRACT.md`.
-- [x] Baseline benchmark harness now exists at `src/diagnostics/benchmark_suite.py` with scorecard outputs for RMSE, MAE, directional accuracy, interval coverage, and candidate win rate by regime.
+- [x] Baseline benchmark harness now exists at `src/diagnostics/benchmark_suite.py` with scorecard outputs for RMSE, MAE, directional accuracy, interval coverage, candidate win rate by regime, Diebold-Mariano comparisons, and interval calibration artifacts.
 - [x] Run and inspect the benchmark harness on the canonical repo dataset and record the first durable findings memo.
 
 ---
 
 ## Active focus order
 
-1. obtain or inspect actual GitHub Actions run evidence
-2. verify authenticated remote push capability or record that it remains unavailable
-3. keep the repo clean of regenerated local-only artifacts while waiting on external evidence
-4. refresh `.venv` only on demand when a needed local verification is blocked by tool drift
-5. defer Phase 3 benchmark/community work until Phase 2 CI evidence is actually verified
+1. run denser benchmark coverage on the approved 5-day and 20-day canonical horizons
+2. add exogenous ablation comparisons and use them to prune complexity
+3. improve regime-aware evaluation and pressure-test candidate-vs-baseline claims
+4. keep the repo clean of regenerated local-only artifacts while benchmark work continues
+5. capture external CI evidence opportunistically without letting it displace benchmark-first execution
 
 ## Immediate next slices
 
-1. **External CI evidence capture slice**
-   - Inspect the most recent real GitHub Actions run for `.github/workflows/ci.yml`.
-   - Record the run URL, commit SHA, workflow conclusion, and any failing job name in `docs/project-plan/BLOCKERS.md` or this board.
-   - Only mark `CI is green` complete after that evidence exists.
-2. **Push-path verification slice**
-   - Confirm whether this environment can perform an authenticated `git push` to `origin`.
-   - If push works, record that fact and prefer shipping a small docs-only change that improves the roadmap/governance state.
-   - If push does not work, record the exact failure mode once and treat it as an external blocker.
+1. **Denser canonical benchmark slice**
+   - Increase benchmark window coverage on 5-day and 20-day NG/oil runs.
+   - Summarize whether the current edge persists once the sample is less flattering.
+2. **Exogenous ablation slice**
+   - Measure weather-only, sentiment-only, combined, and no-exogenous variants.
+   - Record what actually adds signal and what should be demoted.
 3. **Disposable-artifact hygiene slice**
    - Follow `docs/project-plan/DATA_POLICY.md` as the source of truth for Git-vs-DVC ownership.
    - Delete stray local-only `mlruns/`, Hydra `outputs/`, or cache directories if they appear; do not commit them.
    - Do not re-add generated `data/processed/` or `results/` outputs to SCM while DVC stages own them.
-4. **Contingent local-env refresh slice**
-   - If a delegate actually needs to run local verification and `.venv` is missing tools such as `pytest`, refresh it using `docs/project-plan/VERIFICATION_MATRIX.md`.
-   - Do not treat missing tools in a stale local virtualenv as a repo-code regression.
+4. **External CI evidence slice (secondary)**
+   - Inspect the most recent real GitHub Actions run for `.github/workflows/ci.yml` when convenient.
+   - Record the run URL, commit SHA, workflow conclusion, and any failing job name in `docs/project-plan/BLOCKERS.md` or this board.
+   - Leave `CI is green` unchecked until external evidence exists.
 
 ---
 

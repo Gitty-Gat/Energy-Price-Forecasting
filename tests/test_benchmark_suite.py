@@ -50,13 +50,15 @@ class TestBenchmarkSuite(unittest.TestCase):
                 )
             )
 
-            for expected in {"raw", "scorecard", "regime", "win_rate", "metadata"}:
+            for expected in {"raw", "scorecard", "regime", "win_rate", "calibration", "diebold_mariano", "metadata"}:
                 self.assertTrue(paths[expected].exists(), expected)
 
             raw = pd.read_csv(paths["raw"])
             scorecard = pd.read_csv(paths["scorecard"])
             regime = pd.read_csv(paths["regime"])
             win_rate = pd.read_csv(paths["win_rate"])
+            calibration = pd.read_csv(paths["calibration"])
+            diebold_mariano = pd.read_csv(paths["diebold_mariano"])
             metadata = json.loads(paths["metadata"].read_text(encoding="utf-8"))
 
             expected_models = {
@@ -71,12 +73,18 @@ class TestBenchmarkSuite(unittest.TestCase):
             self.assertTrue(expected_models.issubset(set(scorecard["model"])))
             self.assertIn("candidate_win_rate", win_rate.columns)
             self.assertIn("regime", regime.columns)
+            self.assertIn("interval_calibration_error", calibration.columns)
+            self.assertIn("dm_pvalue_rmse", diebold_mariano.columns)
+            self.assertIn("dm_pvalue_mae", diebold_mariano.columns)
             self.assertEqual(sorted(metadata["models"]), sorted(expected_models))
             self.assertEqual(sorted(metadata["commodities"]), ["NG", "OL"])
+            self.assertIn("benchmark_interval_calibration.csv", metadata["artifacts"])
+            self.assertIn("benchmark_diebold_mariano.csv", metadata["artifacts"])
             self.assertGreater(metadata["windows_evaluated"], 0)
             self.assertTrue((scorecard["windows"] > 0).all())
             self.assertTrue((win_rate["candidate_win_rate"] >= 0.0).all())
             self.assertTrue((win_rate["candidate_win_rate"] <= 1.0).all())
+            self.assertTrue((calibration["interval_calibration_error"] >= 0.0).all())
 
 
 if __name__ == "__main__":
