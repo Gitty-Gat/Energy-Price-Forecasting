@@ -135,6 +135,12 @@ def load_and_clean_merged(
     return historical, ng_returns, ol_returns, exog, future_exog, freq
 
 
+def _with_range_index(obj: pd.Series | pd.DataFrame, start: int = 0) -> pd.Series | pd.DataFrame:
+    out = obj.copy()
+    out.index = pd.RangeIndex(start=start, stop=start + len(out))
+    return out
+
+
 def _future_exog(
     last_exog: pd.DataFrame,
     horizon: int,
@@ -162,15 +168,22 @@ def _future_exog(
 
 
 def _forecast_sarimax(y: pd.Series, exog: pd.DataFrame, exog_future: pd.DataFrame, order: tuple[int, int, int], prefix: str) -> pd.DataFrame:
+    y_use = _with_range_index(pd.Series(y, dtype=float))
+    exog_use = _with_range_index(pd.DataFrame(exog, copy=True).astype(float))
+    exog_future_use = _with_range_index(
+        pd.DataFrame(exog_future, copy=True).astype(float),
+        start=len(y_use),
+    )
+
     model = SARIMAX(
-        y,
-        exog=exog,
+        y_use,
+        exog=exog_use,
         order=order,
         enforce_stationarity=False,
         enforce_invertibility=False,
     )
     res = model.fit(disp=False)
-    pred = res.get_forecast(steps=len(exog_future), exog=exog_future)
+    pred = res.get_forecast(steps=len(exog_future_use), exog=exog_future_use)
     ci = pred.conf_int(alpha=0.05)
     return pd.DataFrame(
         {

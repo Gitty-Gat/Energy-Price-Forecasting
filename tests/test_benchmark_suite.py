@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -23,6 +24,28 @@ def _make_merged_csv(path: Path, n: int = 180) -> None:
             "PRICE_OL": ol,
             "HDD": 12 + 8 * np.sin(np.arange(n) / 10),
             "CDD": 7 + 6 * np.cos(np.arange(n) / 13),
+            "sentiment_ng": rng.normal(0.0, 0.2, size=n),
+            "sentiment_ol": rng.normal(0.0, 0.15, size=n),
+        }
+    )
+    df.to_csv(path, index=False)
+
+
+def _make_irregular_merged_csv(path: Path, n: int = 180) -> None:
+    rng = np.random.default_rng(654)
+    full_dates = pd.bdate_range("2023-01-02", periods=n + max(30, n // 4))
+    keep_mask = np.ones(len(full_dates), dtype=bool)
+    keep_mask[::9] = False
+    dates = full_dates[keep_mask][:n]
+    ng = np.exp(np.cumsum(rng.normal(0.0004, 0.011, size=n))) * 2.85
+    ol = np.exp(np.cumsum(rng.normal(0.0002, 0.008, size=n))) * 73.5
+    df = pd.DataFrame(
+        {
+            "date": dates,
+            "PRICE_NG": ng,
+            "PRICE_OL": ol,
+            "HDD": 11 + 7 * np.sin(np.arange(n) / 9),
+            "CDD": 6 + 5 * np.cos(np.arange(n) / 12),
             "sentiment_ng": rng.normal(0.0, 0.2, size=n),
             "sentiment_ol": rng.normal(0.0, 0.15, size=n),
         }
@@ -85,6 +108,32 @@ class TestBenchmarkSuite(unittest.TestCase):
             self.assertTrue((win_rate["candidate_win_rate"] >= 0.0).all())
             self.assertTrue((win_rate["candidate_win_rate"] <= 1.0).all())
             self.assertTrue((calibration["interval_calibration_error"] >= 0.0).all())
+
+    def test_run_benchmark_suite_avoids_irregular_index_sarimax_warnings(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir_path = Path(tmpdir)
+            merged = tmpdir_path / "merged_irregular.csv"
+            outputs = tmpdir_path / "bench_irregular"
+            _make_irregular_merged_csv(merged)
+
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                paths = run_benchmark_suite(
+                    BenchmarkConfig(
+                        merged=str(merged),
+                        outputs=str(outputs),
+                        horizons=[5],
+                        eval_step=15,
+                        min_train_size=90,
+                        seasonal_period=5,
+                        rolling_mean_window=15,
+                    )
+                )
+
+            messages = [str(w.message) for w in caught]
+            self.assertTrue(paths["scorecard"].exists())
+            self.assertFalse(any("no associated frequency information" in message for message in messages))
+            self.assertFalse(any("No supported index is available" in message for message in messages))
 
 
 if __name__ == "__main__":

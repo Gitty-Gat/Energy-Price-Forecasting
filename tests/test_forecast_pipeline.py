@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -134,6 +135,42 @@ class TestForecastPipeline(unittest.TestCase):
                 "ol_return_upper",
             }
             self.assertTrue(required_cols.issubset(set(df.columns)))
+
+    def test_run_forecast_avoids_irregular_index_sarimax_warnings(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            merged = Path(tmpdir) / "merged_irregular.csv"
+            out = Path(tmpdir) / "out_irregular"
+            rng = np.random.default_rng(456)
+            full_dates = pd.bdate_range("2024-01-02", periods=90)
+            keep_mask = np.ones(len(full_dates), dtype=bool)
+            keep_mask[::11] = False
+            dates = full_dates[keep_mask]
+            df = pd.DataFrame(
+                {
+                    "date": dates,
+                    "PRICE_NG": np.exp(np.cumsum(rng.normal(0.0, 0.01, size=len(dates)))) * 2.7,
+                    "PRICE_OL": np.exp(np.cumsum(rng.normal(0.0, 0.008, size=len(dates)))) * 74.5,
+                    "HDD": rng.normal(14, 2, size=len(dates)),
+                    "CDD": rng.normal(8, 2, size=len(dates)),
+                }
+            )
+            df.to_csv(merged, index=False)
+
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                run_forecast(
+                    ForecastConfig(
+                        merged=str(merged),
+                        outputs=str(out),
+                        horizons=[5],
+                        seed=13,
+                        with_hybrid=False,
+                    )
+                )
+
+            messages = [str(w.message) for w in caught]
+            self.assertFalse(any("no associated frequency information" in message for message in messages))
+            self.assertFalse(any("No supported index is available" in message for message in messages))
 
     def test_forecast_script_runs_from_repo_root(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -40,15 +40,26 @@ def _ensure_parent(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
 
+def _with_range_index(obj: pd.Series | pd.DataFrame, start: int = 0) -> pd.Series | pd.DataFrame:
+    out = obj.copy()
+    out.index = pd.RangeIndex(start=start, stop=start + len(out))
+    return out
+
+
 def _fit_sarimax(
     y: pd.Series,
     exog: Optional[pd.DataFrame],
     order: tuple[int, int, int],
     trend: str = "c",
 ) -> object:
+    y_use = _with_range_index(pd.Series(y, dtype=float))
+    exog_use = None
+    if exog is not None:
+        exog_use = _with_range_index(pd.DataFrame(exog, copy=True).astype(float))
+
     model = SARIMAX(
-        y,
-        exog=exog,
+        y_use,
+        exog=exog_use,
         order=order,
         trend=trend,
         enforce_stationarity=False,
@@ -69,6 +80,11 @@ def _candidate_forecast(
     exog_train_use = None if exog_train is None or exog_train.shape[1] == 0 else exog_train
     exog_future_use = None if exog_future is None or exog_future.shape[1] == 0 else exog_future
     horizon = len(exog_future) if exog_future is not None else 1
+    if exog_future_use is not None:
+        exog_future_use = _with_range_index(
+            pd.DataFrame(exog_future_use, copy=True).astype(float),
+            start=len(y_train),
+        )
     result = _fit_sarimax(y_train, exog_train_use, order=order, trend="n")
     pred = result.get_forecast(steps=horizon, exog=exog_future_use)
     conf = pred.conf_int(alpha=0.05)

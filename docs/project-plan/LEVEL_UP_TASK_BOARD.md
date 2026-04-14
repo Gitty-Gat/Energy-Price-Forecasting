@@ -46,7 +46,7 @@ The repo is considered leveled up when all of the following are true:
 
 ### What remains truly open
 - [x] Verify whether authenticated remote push is available from this environment.
-- [ ] Run denser benchmark coverage on the canonical 5-day and 20-day horizons.
+- [x] Run denser benchmark coverage on the canonical 5-day and 20-day horizons.
 - [ ] Add exogenous ablation runs (weather-only, sentiment-only, combined, no-exogenous).
 - [ ] Keep local-only generated artifacts out of git while working through the benchmark lane.
 - [ ] Observe and record a real GitHub Actions run for the current workflow.
@@ -64,18 +64,22 @@ The repo is considered leveled up when all of the following are true:
 ## Next
 
 ### Best next slices for implementation delegates
-1. **Run denser benchmark coverage on the approved canonical horizons**
-   - The benchmark lane is now the governing priority.
-   - Increase window coverage for 5-day and 20-day NG/oil comparisons so the current edge estimate is harder to fake.
-   - Keep generated outputs local unless a durable findings memo is written from them.
-2. **Add exogenous ablation analysis**
+1. **Add exogenous ablation analysis**
    - Compare weather-only, sentiment-only, combined, and no-exogenous variants.
    - Use the benchmark harness outputs to decide whether exogenous complexity is paying rent.
-3. **Tighten regime-aware evaluation artifacts**
+2. **Tighten regime-aware evaluation artifacts**
    - Current regime slicing is a useful first pass, not the final taxonomy.
    - Improve stress/calm and seasonal regime labeling only if it yields more decision-relevant evaluation.
+3. **Tighten interval / uncertainty evaluation artifacts**
+   - The denser 2026-04-14 benchmark pass saturated terminal interval coverage at 1.00 for every model.
+   - Refine the uncertainty score so interval quality can actually separate models.
 4. **Capture external CI evidence opportunistically, not as the controlling priority**
    - External CI evidence still matters, but it is not the main strategic bottleneck now that the benchmark lane is approved and active.
+
+### Recently completed benchmark slice
+- [x] Denser canonical benchmark pass recorded in `docs/project-plan/DENSER_BENCHMARK_FINDINGS_2026-04-14.md`.
+- [x] Candidate still leads aggregate RMSE / MAE on both commodities and both approved horizons in the denser `eval-step 200` run.
+- [x] Local-only `mlruns/` and Hydra `outputs/` noise were cleaned during the slice.
 
 ---
 
@@ -92,25 +96,26 @@ The repo is considered leveled up when all of the following are true:
 - [x] Canonical evaluation contract is now explicitly documented in `docs/project-plan/CANONICAL_EVALUATION_CONTRACT.md`.
 - [x] Baseline benchmark harness now exists at `src/diagnostics/benchmark_suite.py` with scorecard outputs for RMSE, MAE, directional accuracy, interval coverage, candidate win rate by regime, Diebold-Mariano comparisons, and interval calibration artifacts.
 - [x] Run and inspect the benchmark harness on the canonical repo dataset and record the first durable findings memo.
+- [x] Run a denser follow-up benchmark pass and record the second durable findings memo in `docs/project-plan/DENSER_BENCHMARK_FINDINGS_2026-04-14.md`.
 
 ---
 
 ## Active focus order
 
-1. run denser benchmark coverage on the approved 5-day and 20-day canonical horizons
-2. add exogenous ablation comparisons and use them to prune complexity
-3. improve regime-aware evaluation and pressure-test candidate-vs-baseline claims
+1. add exogenous ablation comparisons and use them to prune complexity
+2. improve regime-aware evaluation and pressure-test candidate-vs-baseline claims
+3. tighten interval / uncertainty evaluation so coverage is not trivially saturated
 4. keep the repo clean of regenerated local-only artifacts while benchmark work continues
 5. capture external CI evidence opportunistically without letting it displace benchmark-first execution
 
 ## Immediate next slices
 
-1. **Denser canonical benchmark slice**
-   - Increase benchmark window coverage on 5-day and 20-day NG/oil runs.
-   - Summarize whether the current edge persists once the sample is less flattering.
-2. **Exogenous ablation slice**
+1. **Exogenous ablation slice**
    - Measure weather-only, sentiment-only, combined, and no-exogenous variants.
    - Record what actually adds signal and what should be demoted.
+2. **Interval / uncertainty slice**
+   - Replace or augment the current terminal-only interval coverage artifact.
+   - Make interval evaluation capable of distinguishing over-wide from genuinely well-calibrated uncertainty.
 3. **Disposable-artifact hygiene slice**
    - Follow `docs/project-plan/DATA_POLICY.md` as the source of truth for Git-vs-DVC ownership.
    - Delete stray local-only `mlruns/`, Hydra `outputs/`, or cache directories if they appear; do not commit them.
