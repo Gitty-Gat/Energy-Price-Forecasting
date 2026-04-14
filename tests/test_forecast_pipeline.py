@@ -47,6 +47,37 @@ class TestForecastPipeline(unittest.TestCase):
             self.assertTrue(future_exog.empty)
             self.assertIsNotNone(freq)
 
+    def test_load_and_clean_merged_excludes_target_leakage_columns_from_exog(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            merged = Path(tmpdir) / "merged_with_leakage_cols.csv"
+            rng = np.random.default_rng(222)
+            dates = pd.date_range("2024-01-01", periods=15, freq="D")
+            ng = np.exp(np.cumsum(rng.normal(0.0, 0.01, size=15))) * 2.5
+            ol = np.exp(np.cumsum(rng.normal(0.0, 0.008, size=15))) * 75.0
+            df = pd.DataFrame(
+                {
+                    "date": dates,
+                    "PRICE_NG": ng,
+                    "PRICE_OL": ol,
+                    "RET_NG": np.r_[np.nan, np.diff(np.log(ng))],
+                    "RET_OL": np.r_[np.nan, np.diff(np.log(ol))],
+                    "HDD": rng.normal(15, 3, size=15),
+                    "CDD": rng.normal(10, 2, size=15),
+                    "sentiment_ng": rng.normal(0.0, 0.2, size=15),
+                    "sentiment_ol": rng.normal(0.0, 0.2, size=15),
+                    "is_future": [False] * 15,
+                }
+            )
+            df.to_csv(merged, index=False)
+
+            _, _, _, exog, _, _ = load_and_clean_merged(merged, "PRICE_NG", "PRICE_OL")
+
+            self.assertIn("HDD", exog.columns)
+            self.assertIn("sentiment_ng", exog.columns)
+            self.assertNotIn("RET_NG", exog.columns)
+            self.assertNotIn("RET_OL", exog.columns)
+            self.assertNotIn("is_future", exog.columns)
+
     def test_load_and_run_forecast_with_future_exog_rows(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             merged = Path(tmpdir) / "merged_future.csv"

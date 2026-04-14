@@ -62,6 +62,36 @@ def _coerce_numeric(df: pd.DataFrame, exclude: Sequence[str] = ()) -> pd.DataFra
     return out
 
 
+def select_model_exog_columns(
+    columns: Sequence[str],
+    ng_col: str,
+    ol_col: str,
+) -> list[str]:
+    blocked = {ng_col, ol_col, "ng_return", "ol_return", "RET_NG", "RET_OL", "is_future"}
+    selected: list[str] = []
+    for col in columns:
+        if col in blocked:
+            continue
+        selected.append(str(col))
+    return selected
+
+
+def select_exog_variant_columns(columns: Sequence[str], variant: str) -> list[str]:
+    normalized = variant.strip().lower()
+    if normalized == "combined":
+        return list(columns)
+    if normalized == "no_exogenous":
+        return []
+    if normalized == "weather_only":
+        return [
+            c for c in columns
+            if str(c).lower().startswith(("hdd", "cdd"))
+        ]
+    if normalized == "sentiment_only":
+        return [c for c in columns if str(c).lower().startswith("sentiment_")]
+    raise ValueError(f"Unsupported exogenous variant: {variant}")
+
+
 def load_and_clean_merged(
     merged_path: Path,
     ng_col: str,
@@ -99,7 +129,7 @@ def load_and_clean_merged(
     historical["ol_return"] = np.log(historical[ol_col]).diff()
     historical = historical.dropna(subset=["ng_return", "ol_return"])
 
-    exog_cols = [c for c in historical.columns if c not in {ng_col, ol_col, "ng_return", "ol_return"}]
+    exog_cols = select_model_exog_columns(historical.columns, ng_col=ng_col, ol_col=ol_col)
     exog = historical[exog_cols].copy().ffill().bfill().fillna(0.0).astype(float)
 
     future_rows = df.loc[~historical_mask, exog_cols].copy() if exog_cols else pd.DataFrame(index=df.index[~historical_mask])

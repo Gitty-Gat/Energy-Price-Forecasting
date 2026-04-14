@@ -1,8 +1,10 @@
 # Denser Benchmark Findings — 2026-04-14
 
-**Status:** durable second-pass findings memo  
+> **Superseded note (same day):** this memo was written before the benchmark path excluded leakage-prone exogenous columns such as `RET_NG`, `RET_OL`, and `is_future`. Treat the conclusions here as historical, not current truth. The corrected follow-up is `docs/project-plan/EXOG_ABLATION_FINDINGS_2026-04-14.md`.
+
+**Status:** superseded durable second-pass findings memo  
 **Scope:** denser benchmark run against the canonical internal evaluation contract  
-**Caution:** this is materially denser than the initial sparse pass, but it is still not the final exhaustive backtest grid.
+**Caution:** this run is no longer the repo's honest best read after the post-fix exogenous ablation slice.
 
 ---
 

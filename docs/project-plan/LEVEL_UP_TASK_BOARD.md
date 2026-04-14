@@ -47,7 +47,7 @@ The repo is considered leveled up when all of the following are true:
 ### What remains truly open
 - [x] Verify whether authenticated remote push is available from this environment.
 - [x] Run denser benchmark coverage on the canonical 5-day and 20-day horizons.
-- [ ] Add exogenous ablation runs (weather-only, sentiment-only, combined, no-exogenous).
+- [x] Add exogenous ablation runs (weather-only, sentiment-only, combined, no-exogenous).
 - [ ] Keep local-only generated artifacts out of git while working through the benchmark lane.
 - [ ] Observe and record a real GitHub Actions run for the current workflow.
 
@@ -64,9 +64,9 @@ The repo is considered leveled up when all of the following are true:
 ## Next
 
 ### Best next slices for implementation delegates
-1. **Add exogenous ablation analysis**
-   - Compare weather-only, sentiment-only, combined, and no-exogenous variants.
-   - Use the benchmark harness outputs to decide whether exogenous complexity is paying rent.
+1. **Inspect why the exogenous variants collapse together**
+   - The post-fix ablation run showed `combined`, `weather_only`, and `sentiment_only` landing on the same aggregate scorecard.
+   - Determine whether that reflects genuinely useless exogenous signal, coefficient collapse, or a remaining modeling-path issue.
 2. **Tighten regime-aware evaluation artifacts**
    - Current regime slicing is a useful first pass, not the final taxonomy.
    - Improve stress/calm and seasonal regime labeling only if it yields more decision-relevant evaluation.
@@ -78,7 +78,9 @@ The repo is considered leveled up when all of the following are true:
 
 ### Recently completed benchmark slice
 - [x] Denser canonical benchmark pass recorded in `docs/project-plan/DENSER_BENCHMARK_FINDINGS_2026-04-14.md`.
-- [x] Candidate still leads aggregate RMSE / MAE on both commodities and both approved horizons in the denser `eval-step 200` run.
+- [x] Exogenous leakage-prone columns (`RET_NG`, `RET_OL`, `is_future`) were removed from the model exogenous matrix in the forecast and benchmark paths.
+- [x] Canonical exogenous ablation pass recorded in `docs/project-plan/EXOG_ABLATION_FINDINGS_2026-04-14.md`.
+- [x] The honest post-fix result is that the current candidate family loses aggregate RMSE / MAE to approved baselines, and the exogenous variants collapse to effectively identical scorecards.
 - [x] Local-only `mlruns/` and Hydra `outputs/` noise were cleaned during the slice.
 
 ---
@@ -97,12 +99,13 @@ The repo is considered leveled up when all of the following are true:
 - [x] Baseline benchmark harness now exists at `src/diagnostics/benchmark_suite.py` with scorecard outputs for RMSE, MAE, directional accuracy, interval coverage, candidate win rate by regime, Diebold-Mariano comparisons, and interval calibration artifacts.
 - [x] Run and inspect the benchmark harness on the canonical repo dataset and record the first durable findings memo.
 - [x] Run a denser follow-up benchmark pass and record the second durable findings memo in `docs/project-plan/DENSER_BENCHMARK_FINDINGS_2026-04-14.md`.
+- [x] Run the canonical exogenous ablation suite and record the post-fix findings memo in `docs/project-plan/EXOG_ABLATION_FINDINGS_2026-04-14.md`.
 
 ---
 
 ## Active focus order
 
-1. add exogenous ablation comparisons and use them to prune complexity
+1. inspect why exogenous coefficients collapse to zero and why the exogenous variants are effectively identical
 2. improve regime-aware evaluation and pressure-test candidate-vs-baseline claims
 3. tighten interval / uncertainty evaluation so coverage is not trivially saturated
 4. keep the repo clean of regenerated local-only artifacts while benchmark work continues
@@ -110,9 +113,9 @@ The repo is considered leveled up when all of the following are true:
 
 ## Immediate next slices
 
-1. **Exogenous ablation slice**
-   - Measure weather-only, sentiment-only, combined, and no-exogenous variants.
-   - Record what actually adds signal and what should be demoted.
+1. **Exogenous diagnosis slice**
+   - Inspect why `combined`, `weather_only`, and `sentiment_only` produced the same aggregate results in the post-fix ablation run.
+   - Confirm whether exogenous coefficients are effectively doing nothing or whether another modeling-path issue remains.
 2. **Interval / uncertainty slice**
    - Replace or augment the current terminal-only interval coverage artifact.
    - Make interval evaluation capable of distinguishing over-wide from genuinely well-calibrated uncertainty.

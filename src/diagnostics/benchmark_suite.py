@@ -17,7 +17,7 @@ if __package__ in {None, ""}:
     if str(repo_root) not in sys.path:
         sys.path.insert(0, str(repo_root))
 
-from src.pipelines.forecast import load_and_clean_merged
+from src.pipelines.forecast import load_and_clean_merged, select_exog_variant_columns
 
 
 @dataclass
@@ -34,6 +34,7 @@ class BenchmarkConfig:
     ol_col: str = "PRICE_OL"
     candidate_ng_order: tuple[int, int, int] = (5, 0, 1)
     candidate_ol_order: tuple[int, int, int] = (0, 0, 4)
+    candidate_variants: list[str] | tuple[str, ...] = ("combined",)
 
 
 def _ensure_parent(path: Path) -> None:
@@ -76,10 +77,10 @@ def _candidate_forecast(
     exog_train: Optional[pd.DataFrame],
     exog_future: Optional[pd.DataFrame],
     order: tuple[int, int, int],
+    horizon: int,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     exog_train_use = None if exog_train is None or exog_train.shape[1] == 0 else exog_train
     exog_future_use = None if exog_future is None or exog_future.shape[1] == 0 else exog_future
-    horizon = len(exog_future) if exog_future is not None else 1
     if exog_future_use is not None:
         exog_future_use = _with_range_index(
             pd.DataFrame(exog_future_use, copy=True).astype(float),
@@ -236,6 +237,13 @@ def _diebold_mariano(loss_candidate: pd.Series, loss_baseline: pd.Series) -> tup
     return float(stat), float(p_value)
 
 
+def _candidate_model_name(variant: str) -> str:
+    normalized = variant.strip().lower()
+    if normalized == "combined":
+        return "candidate_arimax"
+    return f"candidate_arimax_{normalized}"
+
+
 def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
     out_dir = Path(config.outputs)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -249,6 +257,10 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
     horizons = sorted(set(config.horizons))
     max_h = max(horizons)
     total_rows = len(ng_returns)
+    candidate_variants = [str(v).strip().lower() for v in config.candidate_variants]
+    if not candidate_variants:
+        raise ValueError("Benchmark suite requires at least one candidate variant.")
+    candidate_models = {_candidate_model_name(variant) for variant in candidate_variants}
     results: list[dict[str, object]] = []
 
     for train_end_pos in range(config.min_train_size, total_rows - max_h, config.eval_step):
@@ -270,35 +282,33 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
                 y_test = np.asarray(series.iloc[train_end_pos:train_end_pos + horizon], dtype=float)
                 actual_prices = np.asarray(df[price_col].loc[series.index[train_end_pos:train_end_pos + horizon]], dtype=float)
                 exog_future = exog.iloc[train_end_pos:train_end_pos + horizon]
-                if exog_train.shape[1] == 0:
-                    exog_train_use = None
-                    exog_future_use = None
-                else:
-                    exog_train_use = exog_train
-                    exog_future_use = exog_future
+                for variant in candidate_variants:
+                    variant_cols = select_exog_variant_columns(exog.columns, variant)
+                    exog_train_use = exog_train[variant_cols] if variant_cols else None
+                    exog_future_use = exog_future[variant_cols] if variant_cols else None
 
-
-                candidate_mean, candidate_lower, candidate_upper = _candidate_forecast(
-                    y_train=y_train,
-                    exog_train=exog_train_use,
-                    exog_future=exog_future_use,
-                    order=candidate_order,
-                )
-                results.append(
-                    _evaluate_model(
-                        model_name="candidate_arimax",
-                        commodity=commodity,
+                    candidate_mean, candidate_lower, candidate_upper = _candidate_forecast(
+                        y_train=y_train,
+                        exog_train=exog_train_use,
+                        exog_future=exog_future_use,
+                        order=candidate_order,
                         horizon=horizon,
-                        train_end=train_end,
-                        regime=regime,
-                        actual_returns=y_test,
-                        actual_prices=actual_prices,
-                        predicted_returns=candidate_mean,
-                        predicted_lower=candidate_lower,
-                        predicted_upper=candidate_upper,
-                        last_price=last_price,
                     )
-                )
+                    results.append(
+                        _evaluate_model(
+                            model_name=_candidate_model_name(variant),
+                            commodity=commodity,
+                            horizon=horizon,
+                            train_end=train_end,
+                            regime=regime,
+                            actual_returns=y_test,
+                            actual_prices=actual_prices,
+                            predicted_returns=candidate_mean,
+                            predicted_lower=candidate_lower,
+                            predicted_upper=candidate_upper,
+                            last_price=last_price,
+                        )
+                    )
 
                 baseline_forecasters = {
                     "random_walk": _random_walk_forecast(y_train, horizon),
@@ -357,24 +367,44 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
         .reset_index(drop=True)
     )
 
-    candidate = raw_df.loc[raw_df["model"] == "candidate_arimax", ["commodity", "horizon", "regime", "train_end", "terminal_abs_error"]].rename(
-        columns={"terminal_abs_error": "candidate_terminal_abs_error"}
+    candidate_rows = raw_df.loc[
+        raw_df["model"].isin(candidate_models),
+        ["commodity", "horizon", "regime", "train_end", "model", "rmse", "mae", "terminal_sq_error", "terminal_abs_error"],
+    ].copy()
+    baseline_rows = raw_df.loc[
+        ~raw_df["model"].isin(candidate_models),
+        ["commodity", "horizon", "regime", "train_end", "model", "rmse", "mae", "terminal_sq_error", "terminal_abs_error"],
+    ].copy()
+    if candidate_rows.empty:
+        raise ValueError("Benchmark suite produced no candidate rows; check candidate_variants.")
+
+    benchmark_wins = baseline_rows[["commodity", "horizon", "regime", "train_end", "model", "terminal_abs_error"]].rename(
+        columns={
+            "terminal_abs_error": "baseline_terminal_abs_error",
+        }
+    ).merge(
+        candidate_rows[["commodity", "horizon", "regime", "train_end", "model", "terminal_abs_error"]].rename(
+            columns={
+                "model": "candidate_model",
+                "terminal_abs_error": "candidate_terminal_abs_error",
+            }
+        ),
+        on=["commodity", "horizon", "regime", "train_end"],
+        how="inner",
     )
-    baselines = raw_df.loc[raw_df["model"] != "candidate_arimax", ["commodity", "horizon", "regime", "train_end", "model", "terminal_abs_error"]].copy()
-    benchmark_wins = baselines.merge(candidate, on=["commodity", "horizon", "regime", "train_end"], how="inner")
     benchmark_wins["candidate_win"] = (
-        benchmark_wins["candidate_terminal_abs_error"] < benchmark_wins["terminal_abs_error"]
+        benchmark_wins["candidate_terminal_abs_error"] < benchmark_wins["baseline_terminal_abs_error"]
     ).astype(float)
     win_rate = (
-        benchmark_wins.groupby(["commodity", "horizon", "regime", "model"], dropna=False)
+        benchmark_wins.groupby(["commodity", "horizon", "regime", "candidate_model", "model"], dropna=False)
         .agg(
             windows=("candidate_win", "count"),
             candidate_win_rate=("candidate_win", "mean"),
             candidate_terminal_abs_error=("candidate_terminal_abs_error", "mean"),
-            baseline_terminal_abs_error=("terminal_abs_error", "mean"),
+            baseline_terminal_abs_error=("baseline_terminal_abs_error", "mean"),
         )
         .reset_index()
-        .sort_values(["commodity", "horizon", "regime", "candidate_win_rate"], ascending=[True, True, True, False])
+        .sort_values(["commodity", "horizon", "candidate_model", "regime", "candidate_win_rate"], ascending=[True, True, True, True, False])
         .reset_index(drop=True)
     )
 
@@ -394,32 +424,68 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
         ["commodity", "horizon", "interval_calibration_error", "model"]
     ).reset_index(drop=True)
 
-    dm_rows: list[dict[str, object]] = []
-    candidate_rows = raw_df.loc[
-        raw_df["model"] == "candidate_arimax",
-        ["commodity", "horizon", "regime", "train_end", "rmse", "mae", "terminal_sq_error", "terminal_abs_error"],
-    ].rename(
-        columns={
-            "rmse": "candidate_rmse",
-            "mae": "candidate_mae",
-            "terminal_sq_error": "candidate_terminal_sq_error",
-            "terminal_abs_error": "candidate_terminal_abs_error",
-        }
+    candidate_scorecard = scorecard.loc[scorecard["model"].isin(candidate_models)].copy().rename(columns={"model": "candidate_model"})
+    best_baselines = (
+        scorecard.loc[~scorecard["model"].isin(candidate_models)]
+        .sort_values(["commodity", "horizon", "rmse", "mae", "terminal_abs_error", "model"])
+        .groupby(["commodity", "horizon"], as_index=False)
+        .first()
+        .rename(
+            columns={
+                "model": "best_baseline_model",
+                "rmse": "best_baseline_rmse",
+                "mae": "best_baseline_mae",
+                "directional_accuracy": "best_baseline_directional_accuracy",
+                "interval_coverage": "best_baseline_interval_coverage",
+                "terminal_abs_error": "best_baseline_terminal_abs_error",
+                "windows": "best_baseline_windows",
+            }
+        )
     )
-    baseline_rows = raw_df.loc[
-        raw_df["model"] != "candidate_arimax",
-        ["commodity", "horizon", "regime", "train_end", "model", "rmse", "mae", "terminal_sq_error", "terminal_abs_error"],
-    ].rename(
+    ablation_scorecard = candidate_scorecard.merge(best_baselines, on=["commodity", "horizon"], how="left")
+    ablation_scorecard["rmse_vs_best_baseline_ratio"] = ablation_scorecard["rmse"] / ablation_scorecard["best_baseline_rmse"]
+    ablation_scorecard["mae_vs_best_baseline_ratio"] = ablation_scorecard["mae"] / ablation_scorecard["best_baseline_mae"]
+    if "candidate_arimax" in set(candidate_scorecard["candidate_model"]):
+        combined = candidate_scorecard.loc[
+            candidate_scorecard["candidate_model"] == "candidate_arimax",
+            ["commodity", "horizon", "rmse", "mae", "terminal_abs_error"],
+        ].rename(
+            columns={
+                "rmse": "combined_rmse",
+                "mae": "combined_mae",
+                "terminal_abs_error": "combined_terminal_abs_error",
+            }
+        )
+        ablation_scorecard = ablation_scorecard.merge(combined, on=["commodity", "horizon"], how="left")
+        ablation_scorecard["rmse_vs_combined_ratio"] = ablation_scorecard["rmse"] / ablation_scorecard["combined_rmse"]
+        ablation_scorecard["mae_vs_combined_ratio"] = ablation_scorecard["mae"] / ablation_scorecard["combined_mae"]
+    ablation_scorecard = ablation_scorecard.sort_values(
+        ["commodity", "horizon", "rmse", "mae", "terminal_abs_error", "candidate_model"]
+    ).reset_index(drop=True)
+
+    dm_rows: list[dict[str, object]] = []
+    dm_source = baseline_rows.rename(
         columns={
             "rmse": "baseline_rmse",
             "mae": "baseline_mae",
             "terminal_sq_error": "baseline_terminal_sq_error",
             "terminal_abs_error": "baseline_terminal_abs_error",
         }
+    ).merge(
+        candidate_rows.rename(
+            columns={
+                "model": "candidate_model",
+                "rmse": "candidate_rmse",
+                "mae": "candidate_mae",
+                "terminal_sq_error": "candidate_terminal_sq_error",
+                "terminal_abs_error": "candidate_terminal_abs_error",
+            }
+        ),
+        on=["commodity", "horizon", "regime", "train_end"],
+        how="inner",
     )
-    dm_source = baseline_rows.merge(candidate_rows, on=["commodity", "horizon", "regime", "train_end"], how="inner")
-    for keys, group in dm_source.groupby(["commodity", "horizon", "regime", "model"], dropna=False):
-        commodity, horizon, regime, model = keys
+    for keys, group in dm_source.groupby(["commodity", "horizon", "regime", "candidate_model", "model"], dropna=False):
+        commodity, horizon, regime, candidate_model, model = keys
         rmse_stat, rmse_p = _diebold_mariano(group["candidate_rmse"], group["baseline_rmse"])
         mae_stat, mae_p = _diebold_mariano(group["candidate_mae"], group["baseline_mae"])
         term_sq_stat, term_sq_p = _diebold_mariano(group["candidate_terminal_sq_error"], group["baseline_terminal_sq_error"])
@@ -429,6 +495,7 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
                 "commodity": commodity,
                 "horizon": horizon,
                 "regime": regime,
+                "candidate_model": candidate_model,
                 "model": model,
                 "windows": int(len(group)),
                 "candidate_mean_rmse": float(group["candidate_rmse"].mean()),
@@ -446,7 +513,7 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
             }
         )
     diebold_mariano = pd.DataFrame(dm_rows).sort_values(
-        ["commodity", "horizon", "regime", "dm_pvalue_rmse", "model"],
+        ["commodity", "horizon", "candidate_model", "regime", "dm_pvalue_rmse", "model"],
         na_position="last",
     ).reset_index(drop=True)
 
@@ -455,6 +522,9 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
         "rows_used": int(len(df)),
         "windows_evaluated": int(raw_df["train_end"].nunique()),
         "models": sorted(raw_df["model"].unique().tolist()),
+        "candidate_variants": candidate_variants,
+        "candidate_models": sorted(candidate_models),
+        "exog_columns": exog.columns.tolist(),
         "commodities": sorted(raw_df["commodity"].unique().tolist()),
         "artifacts": [
             "benchmark_window_metrics.csv",
@@ -463,6 +533,7 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
             "benchmark_candidate_win_rate_by_regime.csv",
             "benchmark_interval_calibration.csv",
             "benchmark_diebold_mariano.csv",
+            "benchmark_ablation_scorecard.csv",
         ],
     }
 
@@ -472,6 +543,7 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
     win_rate_path = out_dir / "benchmark_candidate_win_rate_by_regime.csv"
     calibration_path = out_dir / "benchmark_interval_calibration.csv"
     dm_path = out_dir / "benchmark_diebold_mariano.csv"
+    ablation_path = out_dir / "benchmark_ablation_scorecard.csv"
     metadata_path = out_dir / "benchmark_metadata.json"
 
     raw_df.to_csv(raw_path, index=False)
@@ -480,6 +552,7 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
     win_rate.to_csv(win_rate_path, index=False)
     interval_calibration.to_csv(calibration_path, index=False)
     diebold_mariano.to_csv(dm_path, index=False)
+    ablation_scorecard.to_csv(ablation_path, index=False)
     metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 
     return {
@@ -489,6 +562,7 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
         "win_rate": win_rate_path,
         "calibration": calibration_path,
         "diebold_mariano": dm_path,
+        "ablation": ablation_path,
         "metadata": metadata_path,
     }
 
@@ -503,6 +577,12 @@ def parse_args() -> BenchmarkConfig:
     parser.add_argument("--rolling-window", type=int, default=None)
     parser.add_argument("--seasonal-period", type=int, default=5)
     parser.add_argument("--rolling-mean-window", type=int, default=20)
+    parser.add_argument(
+        "--candidate-variants",
+        nargs="+",
+        default=["combined"],
+        choices=["combined", "weather_only", "sentiment_only", "no_exogenous"],
+    )
     args = parser.parse_args()
     return BenchmarkConfig(
         merged=args.merged,
@@ -513,6 +593,7 @@ def parse_args() -> BenchmarkConfig:
         rolling_window=args.rolling_window,
         seasonal_period=args.seasonal_period,
         rolling_mean_window=args.rolling_mean_window,
+        candidate_variants=args.candidate_variants,
     )
 
 

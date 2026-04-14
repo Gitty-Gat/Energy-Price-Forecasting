@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from src.diagnostics.benchmark_suite import BenchmarkConfig, run_benchmark_suite
+from src.diagnostics.benchmark_suite import BenchmarkConfig, _candidate_forecast, run_benchmark_suite
 
 
 def _make_merged_csv(path: Path, n: int = 180) -> None:
@@ -54,6 +54,21 @@ def _make_irregular_merged_csv(path: Path, n: int = 180) -> None:
 
 
 class TestBenchmarkSuite(unittest.TestCase):
+    def test_candidate_forecast_without_exog_respects_requested_horizon(self) -> None:
+        rng = np.random.default_rng(777)
+        y_train = pd.Series(rng.normal(0.0, 0.01, size=80))
+        mean, lower, upper = _candidate_forecast(
+            y_train=y_train,
+            exog_train=None,
+            exog_future=None,
+            order=(1, 0, 0),
+            horizon=5,
+        )
+
+        self.assertEqual(len(mean), 5)
+        self.assertEqual(len(lower), 5)
+        self.assertEqual(len(upper), 5)
+
     def test_run_benchmark_suite_writes_scorecards_and_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir_path = Path(tmpdir)
@@ -103,11 +118,50 @@ class TestBenchmarkSuite(unittest.TestCase):
             self.assertEqual(sorted(metadata["commodities"]), ["NG", "OL"])
             self.assertIn("benchmark_interval_calibration.csv", metadata["artifacts"])
             self.assertIn("benchmark_diebold_mariano.csv", metadata["artifacts"])
+            self.assertIn("benchmark_ablation_scorecard.csv", metadata["artifacts"])
             self.assertGreater(metadata["windows_evaluated"], 0)
             self.assertTrue((scorecard["windows"] > 0).all())
             self.assertTrue((win_rate["candidate_win_rate"] >= 0.0).all())
             self.assertTrue((win_rate["candidate_win_rate"] <= 1.0).all())
             self.assertTrue((calibration["interval_calibration_error"] >= 0.0).all())
+
+    def test_run_benchmark_suite_supports_candidate_ablation_variants(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir_path = Path(tmpdir)
+            merged = tmpdir_path / "merged.csv"
+            outputs = tmpdir_path / "bench_ablation"
+            _make_merged_csv(merged)
+
+            paths = run_benchmark_suite(
+                BenchmarkConfig(
+                    merged=str(merged),
+                    outputs=str(outputs),
+                    horizons=[5],
+                    eval_step=15,
+                    min_train_size=80,
+                    seasonal_period=5,
+                    rolling_mean_window=15,
+                    candidate_variants=["combined", "weather_only", "sentiment_only", "no_exogenous"],
+                )
+            )
+
+            raw = pd.read_csv(paths["raw"])
+            ablation = pd.read_csv(paths["ablation"])
+            win_rate = pd.read_csv(paths["win_rate"])
+            dm = pd.read_csv(paths["diebold_mariano"])
+            expected_candidates = {
+                "candidate_arimax",
+                "candidate_arimax_weather_only",
+                "candidate_arimax_sentiment_only",
+                "candidate_arimax_no_exogenous",
+            }
+
+            self.assertTrue(expected_candidates.issubset(set(raw["model"])))
+            self.assertTrue(expected_candidates.issubset(set(ablation["candidate_model"])))
+            self.assertIn("best_baseline_model", ablation.columns)
+            self.assertIn("rmse_vs_best_baseline_ratio", ablation.columns)
+            self.assertIn("candidate_model", win_rate.columns)
+            self.assertIn("candidate_model", dm.columns)
 
     def test_run_benchmark_suite_avoids_irregular_index_sarimax_warnings(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
