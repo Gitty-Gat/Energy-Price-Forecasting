@@ -21,14 +21,15 @@ under `data/processed/`:
   date column labelled ``Date`` and a price column labelled ``Price``.
 * ``data/raw/prices/Oil_prompt_month_futures_price.csv`` – same format as
   the NG file.
-* ``data/raw/weather/hdd_cdd_forecast.csv`` – HDD/CDD input.  This can be
-  either a daily HDD/CDD table or the CPC 7-day grid format handled by the
-  loader.
+* ``data/raw/weather/weather.csv`` – historical HDD/CDD input.
+* ``data/raw/weather/hdd_cdd_forecast.csv`` – optional future HDD/CDD forecast
+  input.  This can be either a daily HDD/CDD table or the CPC 7-day grid
+  format handled by the loader.
+* ``data/raw/sentiment/sentiment_exog.csv`` – optional daily sentiment input.
 
-An optional sentiment file may be supplied which should include a
-``date`` column and two columns called ``sentiment_ng`` and
-``sentiment_ol``.  These will override the NaN placeholders that the
-script populates when no sentiment data is provided.
+If both historical and forecast weather files are available, the merge stage
+combines them so historical dates use the historical series while future dates
+can still extend beyond the last observed price date.
 
 The merged output is written to ``data/processed/merged_exog.csv`` by
 default.  All paths can be customised via command‑line arguments.  Use
@@ -39,7 +40,8 @@ Example::
     python src/features/merge_exog_pipeline.py \
         --ng-path data/raw/prices/NG_prompt_month_futures_price.csv \
         --ol-path data/raw/prices/Oil_prompt_month_futures_price.csv \
-        --hdd-cdd-path data/raw/weather/hdd_cdd_forecast.csv \
+        --weather-history-path data/raw/weather/weather.csv \
+        --weather-forecast-path data/raw/weather/hdd_cdd_forecast.csv \
         --sentiment-path data/raw/sentiment/sentiment_exog.csv \
         --output-path data/processed/merged_exog.csv
 
@@ -229,7 +231,42 @@ def load_hdd_cdd(path: str) -> pd.DataFrame:
 
     out = df[["date", "hdd", "cdd"]].rename(columns={"hdd": "HDD", "cdd": "CDD"}).copy()
     out[["HDD", "CDD"]] = out[["HDD", "CDD"]].apply(pd.to_numeric, errors="coerce").fillna(0.0)
+    if "region" in df.columns:
+        out = out.groupby("date", as_index=False)[["HDD", "CDD"]].sum()
+    else:
+        out = out.drop_duplicates("date")
     return out.sort_values("date").reset_index(drop=True)
+
+
+def load_combined_hdd_cdd(
+    historical_path: str | None = None,
+    forecast_path: str | None = None,
+    legacy_path: str | None = None,
+) -> pd.DataFrame:
+    frames: list[pd.DataFrame] = []
+
+    if legacy_path:
+        return load_hdd_cdd(legacy_path)
+
+    if historical_path and Path(historical_path).exists():
+        hist = load_hdd_cdd(historical_path)
+        hist["source"] = "historical"
+        hist["source_priority"] = 0
+        frames.append(hist)
+
+    if forecast_path and Path(forecast_path).exists():
+        forecast = load_hdd_cdd(forecast_path)
+        forecast["source"] = "forecast"
+        forecast["source_priority"] = 1
+        frames.append(forecast)
+
+    if not frames:
+        raise FileNotFoundError("No weather input file found. Provide a legacy HDD/CDD path or historical/forecast weather paths.")
+
+    combined = pd.concat(frames, ignore_index=True)
+    combined = combined.sort_values(["date", "source_priority"], kind="stable")
+    combined = combined.drop_duplicates(subset=["date"], keep="first")
+    return combined[["date", "HDD", "CDD"]].sort_values("date").reset_index(drop=True)
 
 
 
@@ -414,13 +451,25 @@ def main() -> None:
     parser.add_argument(
         "--hdd-cdd-path",
         type=str,
+        default=None,
+        help="Legacy single weather path override. If omitted, the pipeline combines historical and forecast weather inputs.",
+    )
+    parser.add_argument(
+        "--weather-history-path",
+        type=str,
+        default="data/raw/weather/weather.csv",
+        help="Path to historical weather CSV (default: data/raw/weather/weather.csv)",
+    )
+    parser.add_argument(
+        "--weather-forecast-path",
+        type=str,
         default="data/raw/weather/hdd_cdd_forecast.csv",
-        help="Path to Heating/Cooling Degree Day CSV (default: data/raw/weather/hdd_cdd_forecast.csv)",
+        help="Path to future weather forecast CSV (default: data/raw/weather/hdd_cdd_forecast.csv)",
     )
     parser.add_argument(
         "--sentiment-path",
         type=str,
-        default=None,
+        default="data/raw/sentiment/sentiment_exog.csv",
         help="Optional path to sentiment exogenous CSV with date, sentiment_ng, sentiment_ol columns",
     )
     parser.add_argument(
@@ -443,7 +492,9 @@ def main() -> None:
     logging.info("Loading input files...")
     ng_path = Path(args.ng_path)
     ol_path = Path(args.ol_path)
-    wx_path = Path(args.hdd_cdd_path)
+    wx_path = Path(args.hdd_cdd_path) if args.hdd_cdd_path else None
+    weather_history_path = Path(args.weather_history_path) if args.weather_history_path else None
+    weather_forecast_path = Path(args.weather_forecast_path) if args.weather_forecast_path else None
     sentiment_path = Path(args.sentiment_path) if args.sentiment_path else None
 
     try:
@@ -459,10 +510,20 @@ def main() -> None:
         logging.error("Failed to load Oil price file %s: %s", ol_path, exc)
         sys.exit(1)
     try:
-        wx_df = load_hdd_cdd(wx_path)
+        wx_df = load_combined_hdd_cdd(
+            historical_path=str(weather_history_path) if weather_history_path else None,
+            forecast_path=str(weather_forecast_path) if weather_forecast_path else None,
+            legacy_path=str(wx_path) if wx_path else None,
+        )
         logging.info("Loaded HDD/CDD data: %d rows", len(wx_df))
     except Exception as exc:
-        logging.error("Failed to load HDD/CDD file %s: %s", wx_path, exc)
+        logging.error(
+            "Failed to load weather inputs legacy=%s historical=%s forecast=%s: %s",
+            wx_path,
+            weather_history_path,
+            weather_forecast_path,
+            exc,
+        )
         sys.exit(1)
 
     sentiment_df = None

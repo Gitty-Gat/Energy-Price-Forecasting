@@ -1,6 +1,8 @@
 # Exogenous Ablation Findings — 2026-04-14
 
-**Status:** execution memo after fixing exogenous leakage in the benchmark path  
+> **Superseded note (same day):** this memo captures the post-leakage-fix state *before* the merge-path defaults were repaired. The newer current-truth follow-up is `docs/project-plan/POST_MERGE_FIX_ABLATION_FINDINGS_2026-04-14.md`.
+
+**Status:** superseded execution memo after fixing exogenous leakage in the benchmark path  
 **Scope:** canonical internal 5-day / 20-day NG and oil benchmark with exogenous ablations  
 **Decision relevance:** high
 

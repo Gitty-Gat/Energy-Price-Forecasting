@@ -8,7 +8,7 @@ stages:
       - data/processed/ingestion_manifest.json
 
   merge:
-    cmd: python src/features/merge_exog_pipeline.py
+    cmd: python src/features/merge_exog_pipeline.py --weather-history-path data/raw/weather/weather.csv --weather-forecast-path data/raw/weather/hdd_cdd_forecast.csv --sentiment-path data/raw/sentiment/sentiment_exog.csv
     deps:
       - data/raw
       - data/processed/ingestion_manifest.json

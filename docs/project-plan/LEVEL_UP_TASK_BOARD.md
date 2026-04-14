@@ -82,7 +82,10 @@ The repo is considered leveled up when all of the following are true:
 - [x] Canonical exogenous ablation pass recorded in `docs/project-plan/EXOG_ABLATION_FINDINGS_2026-04-14.md`.
 - [x] The benchmark harness now emits `benchmark_candidate_parameter_audit.csv` and `benchmark_candidate_parameter_audit_summary.csv` for candidate-fit integrity checks.
 - [x] The honest post-fix result is that the current candidate family loses aggregate RMSE / MAE to approved baselines, and the exogenous variants collapse to effectively identical scorecards.
-- [x] The deeper integrity finding is that the canonical merged dataset currently yields no usable historical exogenous columns after constant-column filtering; all requested weather/sentiment columns are dropped in the canonical run.
+- [x] The deeper integrity finding was traced to the merge stage defaults: the prior canonical merged dataset effectively omitted historical weather and default sentiment coverage.
+- [x] Merge-path defaults and DVC wiring were fixed so canonical rebuilds now use historical weather, future weather forecast extension, and sentiment by default.
+- [x] Post-merge-fix rerun recorded in `docs/project-plan/POST_MERGE_FIX_ABLATION_FINDINGS_2026-04-14.md`.
+- [x] After the merge fix, exogenous variants are genuinely distinct again, but the candidate family still loses aggregate RMSE / MAE to the approved baselines.
 - [x] Local-only `mlruns/` and Hydra `outputs/` noise were cleaned during the slice.
 
 ---
@@ -107,7 +110,7 @@ The repo is considered leveled up when all of the following are true:
 
 ## Active focus order
 
-1. fix or explain the merge / ingest path that produces constant historical exogenous columns in the canonical dataset
+1. decide whether to split candidate design by commodity / horizon now that sentiment shows limited NG signal while oil still prefers no-exogenous control
 2. improve regime-aware evaluation and pressure-test candidate-vs-baseline claims
 3. tighten interval / uncertainty evaluation so coverage is not trivially saturated
 4. keep the repo clean of regenerated local-only artifacts while benchmark work continues
@@ -115,9 +118,9 @@ The repo is considered leveled up when all of the following are true:
 
 ## Immediate next slices
 
-1. **Exogenous data-integrity slice**
-   - Trace why the canonical merged dataset produces constant historical weather/sentiment columns and therefore drops all requested exogenous features before fitting.
-   - Decide whether the right next move is fixing upstream exogenous data coverage, re-specifying the candidate, or temporarily pruning the exogenous lane.
+1. **Commodity-specific candidate slice**
+   - Use the post-merge-fix ablation findings to decide whether NG and OL should stop sharing the same exogenous story.
+   - Test whether sentiment-focused NG variants deserve separate treatment while OL stays on the no-exogenous control.
 2. **Interval / uncertainty slice**
    - Replace or augment the current terminal-only interval coverage artifact.
    - Make interval evaluation capable of distinguishing over-wide from genuinely well-calibrated uncertainty.
