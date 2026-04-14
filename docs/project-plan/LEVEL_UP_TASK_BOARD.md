@@ -83,10 +83,15 @@ The repo is considered leveled up when all of the following are true:
 
 ### Phase 3 — Benchmark repo
 - [ ] Add multivariate volatility roadmap (DCC or similar).
-- [ ] Add benchmark suite vs naive/random-walk/seasonal baselines.
+- [x] Add benchmark suite vs naive/random-walk/seasonal baselines.
 - [ ] Add Diebold-Mariano tests and interval calibration monitoring.
 - [ ] Add contribution guide, release notes, issue templates, and public roadmap.
 - [ ] Consider PyPI packaging and public methodology note.
+
+### Benchmark lane notes
+- [x] Canonical evaluation contract is now explicitly documented in `docs/project-plan/CANONICAL_EVALUATION_CONTRACT.md`.
+- [x] Baseline benchmark harness now exists at `src/diagnostics/benchmark_suite.py` with scorecard outputs for RMSE, MAE, directional accuracy, interval coverage, and candidate win rate by regime.
+- [ ] Run and inspect the benchmark harness on the canonical repo dataset and record the first durable findings memo.
 
 ---
 
