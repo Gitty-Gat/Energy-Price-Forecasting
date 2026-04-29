@@ -197,6 +197,28 @@ def _terminal_interval_coverage(actual_terminal: float, lower_terminal: float, u
     return float(lower_terminal <= actual_terminal <= upper_terminal)
 
 
+def _interval_path_metrics(actual_prices: np.ndarray, lower_prices: np.ndarray, upper_prices: np.ndarray, alpha: float = 0.05) -> dict[str, float]:
+    actual = np.asarray(actual_prices, dtype=float)
+    lower = np.asarray(lower_prices, dtype=float)
+    upper = np.asarray(upper_prices, dtype=float)
+    width = np.maximum(upper - lower, 0.0)
+    scale = np.maximum(np.abs(actual), 1e-12)
+    below = actual < lower
+    above = actual > upper
+    winkler = width.copy()
+    winkler[below] += (2.0 / alpha) * (lower[below] - actual[below])
+    winkler[above] += (2.0 / alpha) * (actual[above] - upper[above])
+    return {
+        "path_interval_coverage": float(np.mean((lower <= actual) & (actual <= upper))),
+        "mean_interval_width": float(np.mean(width)),
+        "mean_interval_width_pct": float(np.mean(width / scale)),
+        "terminal_interval_width": float(width[-1]),
+        "terminal_interval_width_pct": float(width[-1] / scale[-1]),
+        "winkler_score": float(np.mean(winkler)),
+        "winkler_score_pct": float(np.mean(winkler / scale)),
+    }
+
+
 def _evaluate_model(
     model_name: str,
     commodity: str,
@@ -218,6 +240,7 @@ def _evaluate_model(
     terminal_pred = float(predicted_prices[-1])
     terminal_abs_error = abs(terminal_pred - terminal_actual)
     terminal_sq_error = float((terminal_pred - terminal_actual) ** 2)
+    interval_metrics = _interval_path_metrics(actual_prices, lower_prices, upper_prices)
 
     return {
         "train_end": str(train_end.date()),
@@ -229,6 +252,7 @@ def _evaluate_model(
         "mae": float(np.mean(np.abs(predicted_prices - actual_prices))),
         "directional_accuracy": _directional_accuracy(predicted_returns, actual_returns),
         "interval_coverage": _terminal_interval_coverage(terminal_actual, float(lower_prices[-1]), float(upper_prices[-1])),
+        **interval_metrics,
         "terminal_abs_error": float(terminal_abs_error),
         "terminal_sq_error": terminal_sq_error,
         "terminal_actual": terminal_actual,
@@ -413,6 +437,10 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
             mae=("mae", "mean"),
             directional_accuracy=("directional_accuracy", "mean"),
             interval_coverage=("interval_coverage", "mean"),
+            path_interval_coverage=("path_interval_coverage", "mean"),
+            mean_interval_width_pct=("mean_interval_width_pct", "mean"),
+            terminal_interval_width_pct=("terminal_interval_width_pct", "mean"),
+            winkler_score_pct=("winkler_score_pct", "mean"),
             terminal_abs_error=("terminal_abs_error", "mean"),
         )
         .reset_index()
@@ -428,6 +456,10 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
             mae=("mae", "mean"),
             directional_accuracy=("directional_accuracy", "mean"),
             interval_coverage=("interval_coverage", "mean"),
+            path_interval_coverage=("path_interval_coverage", "mean"),
+            mean_interval_width_pct=("mean_interval_width_pct", "mean"),
+            terminal_interval_width_pct=("terminal_interval_width_pct", "mean"),
+            winkler_score_pct=("winkler_score_pct", "mean"),
             terminal_abs_error=("terminal_abs_error", "mean"),
         )
         .reset_index()
@@ -480,13 +512,17 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
         raw_df.groupby(["commodity", "horizon", "model"], dropna=False)
         .agg(
             windows=("train_end", "count"),
-            observed_interval_coverage=("interval_coverage", "mean"),
+            observed_terminal_interval_coverage=("interval_coverage", "mean"),
+            observed_path_interval_coverage=("path_interval_coverage", "mean"),
+            mean_interval_width_pct=("mean_interval_width_pct", "mean"),
+            terminal_interval_width_pct=("terminal_interval_width_pct", "mean"),
+            winkler_score_pct=("winkler_score_pct", "mean"),
         )
         .reset_index()
     )
     interval_calibration["nominal_interval_coverage"] = 0.95
     interval_calibration["interval_calibration_error"] = (
-        interval_calibration["observed_interval_coverage"] - interval_calibration["nominal_interval_coverage"]
+        interval_calibration["observed_path_interval_coverage"] - interval_calibration["nominal_interval_coverage"]
     ).abs()
     interval_calibration = interval_calibration.sort_values(
         ["commodity", "horizon", "interval_calibration_error", "model"]
@@ -527,8 +563,65 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
         ablation_scorecard = ablation_scorecard.merge(combined, on=["commodity", "horizon"], how="left")
         ablation_scorecard["rmse_vs_combined_ratio"] = ablation_scorecard["rmse"] / ablation_scorecard["combined_rmse"]
         ablation_scorecard["mae_vs_combined_ratio"] = ablation_scorecard["mae"] / ablation_scorecard["combined_mae"]
+    ablation_scorecard["beats_best_baseline_rmse"] = ablation_scorecard["rmse"] < ablation_scorecard["best_baseline_rmse"]
+    ablation_scorecard["beats_best_baseline_mae"] = ablation_scorecard["mae"] < ablation_scorecard["best_baseline_mae"]
+    ablation_scorecard["promotion_ready"] = ablation_scorecard["beats_best_baseline_rmse"] & ablation_scorecard["beats_best_baseline_mae"]
     ablation_scorecard = ablation_scorecard.sort_values(
         ["commodity", "horizon", "rmse", "mae", "terminal_abs_error", "candidate_model"]
+    ).reset_index(drop=True)
+
+    best_candidates = (
+        ablation_scorecard.sort_values(["commodity", "horizon", "rmse", "mae", "terminal_abs_error", "candidate_model"])
+        .groupby(["commodity", "horizon"], as_index=False)
+        .first()
+    )
+    candidate_design = best_candidates[
+        [
+            "commodity",
+            "horizon",
+            "candidate_model",
+            "rmse",
+            "mae",
+            "best_baseline_model",
+            "best_baseline_rmse",
+            "best_baseline_mae",
+            "rmse_vs_best_baseline_ratio",
+            "mae_vs_best_baseline_ratio",
+            "promotion_ready",
+        ]
+    ].copy()
+    candidate_design["design_decision"] = np.where(
+        candidate_design["promotion_ready"],
+        "promote_candidate_variant",
+        "prune_or_hold_candidate_variant",
+    )
+    candidate_design["commodity_horizon_recommendation"] = candidate_design.apply(
+        lambda row: (
+            f"{row['commodity']} {int(row['horizon'])}d: use {row['candidate_model']} only as candidate under test; "
+            f"production/evidence baseline remains {row['best_baseline_model']}"
+        ),
+        axis=1,
+    )
+
+    candidate_regime = regime_scorecard.loc[regime_scorecard["model"].isin(candidate_models)].copy().rename(columns={"model": "candidate_model"})
+    baseline_regime = (
+        regime_scorecard.loc[~regime_scorecard["model"].isin(candidate_models)]
+        .sort_values(["commodity", "horizon", "regime", "rmse", "mae", "terminal_abs_error", "model"])
+        .groupby(["commodity", "horizon", "regime"], as_index=False)
+        .first()
+        .rename(columns={"model": "best_baseline_model", "rmse": "best_baseline_rmse", "mae": "best_baseline_mae"})
+    )
+    regime_promotion = candidate_regime.merge(baseline_regime, on=["commodity", "horizon", "regime"], how="left")
+    regime_promotion["beats_best_baseline_rmse"] = regime_promotion["rmse"] < regime_promotion["best_baseline_rmse"]
+    regime_promotion["beats_best_baseline_mae"] = regime_promotion["mae"] < regime_promotion["best_baseline_mae"]
+    regime_promotion["promotion_ready"] = regime_promotion["beats_best_baseline_rmse"] & regime_promotion["beats_best_baseline_mae"]
+    aggregate_decisions = ablation_scorecard[["commodity", "horizon", "candidate_model", "promotion_ready"]].rename(
+        columns={"promotion_ready": "aggregate_promotion_ready"}
+    )
+    regime_promotion = regime_promotion.merge(aggregate_decisions, on=["commodity", "horizon", "candidate_model"], how="left")
+    regime_promotion["regime_changes_decision"] = regime_promotion["promotion_ready"] != regime_promotion["aggregate_promotion_ready"]
+    regime_promotion = regime_promotion.sort_values(
+        ["commodity", "horizon", "regime", "rmse", "mae", "candidate_model"]
     ).reset_index(drop=True)
 
     parameter_audit = pd.DataFrame(parameter_rows).sort_values(
@@ -628,6 +721,8 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
             "benchmark_ablation_scorecard.csv",
             "benchmark_candidate_parameter_audit.csv",
             "benchmark_candidate_parameter_audit_summary.csv",
+            "benchmark_candidate_design_decisions.csv",
+            "benchmark_regime_promotion_decisions.csv",
         ],
     }
 
@@ -640,6 +735,8 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
     ablation_path = out_dir / "benchmark_ablation_scorecard.csv"
     parameter_audit_path = out_dir / "benchmark_candidate_parameter_audit.csv"
     parameter_audit_summary_path = out_dir / "benchmark_candidate_parameter_audit_summary.csv"
+    candidate_design_path = out_dir / "benchmark_candidate_design_decisions.csv"
+    regime_promotion_path = out_dir / "benchmark_regime_promotion_decisions.csv"
     metadata_path = out_dir / "benchmark_metadata.json"
 
     raw_df.to_csv(raw_path, index=False)
@@ -651,6 +748,8 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
     ablation_scorecard.to_csv(ablation_path, index=False)
     parameter_audit.to_csv(parameter_audit_path, index=False)
     parameter_audit_summary.to_csv(parameter_audit_summary_path, index=False)
+    candidate_design.to_csv(candidate_design_path, index=False)
+    regime_promotion.to_csv(regime_promotion_path, index=False)
     metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 
     return {
@@ -663,6 +762,8 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
         "ablation": ablation_path,
         "parameter_audit": parameter_audit_path,
         "parameter_audit_summary": parameter_audit_summary_path,
+        "candidate_design": candidate_design_path,
+        "regime_promotion": regime_promotion_path,
         "metadata": metadata_path,
     }
 

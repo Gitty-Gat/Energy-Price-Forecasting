@@ -105,7 +105,19 @@ class TestBenchmarkSuite(unittest.TestCase):
                 )
             )
 
-            for expected in {"raw", "scorecard", "regime", "win_rate", "calibration", "diebold_mariano", "parameter_audit", "parameter_audit_summary", "metadata"}:
+            for expected in {
+                "raw",
+                "scorecard",
+                "regime",
+                "win_rate",
+                "calibration",
+                "diebold_mariano",
+                "parameter_audit",
+                "parameter_audit_summary",
+                "candidate_design",
+                "regime_promotion",
+                "metadata",
+            }:
                 self.assertTrue(paths[expected].exists(), expected)
 
             raw = pd.read_csv(paths["raw"])
@@ -116,6 +128,8 @@ class TestBenchmarkSuite(unittest.TestCase):
             diebold_mariano = pd.read_csv(paths["diebold_mariano"])
             parameter_audit = pd.read_csv(paths["parameter_audit"])
             parameter_audit_summary = pd.read_csv(paths["parameter_audit_summary"])
+            candidate_design = pd.read_csv(paths["candidate_design"])
+            regime_promotion = pd.read_csv(paths["regime_promotion"])
             metadata = json.loads(paths["metadata"].read_text(encoding="utf-8"))
 
             expected_models = {
@@ -130,6 +144,10 @@ class TestBenchmarkSuite(unittest.TestCase):
             self.assertTrue(expected_models.issubset(set(scorecard["model"])))
             self.assertIn("candidate_win_rate", win_rate.columns)
             self.assertIn("regime", regime.columns)
+            self.assertIn("path_interval_coverage", scorecard.columns)
+            self.assertIn("winkler_score_pct", scorecard.columns)
+            self.assertIn("observed_path_interval_coverage", calibration.columns)
+            self.assertIn("winkler_score_pct", calibration.columns)
             self.assertIn("interval_calibration_error", calibration.columns)
             self.assertIn("dm_pvalue_rmse", diebold_mariano.columns)
             self.assertIn("dm_pvalue_mae", diebold_mariano.columns)
@@ -143,6 +161,8 @@ class TestBenchmarkSuite(unittest.TestCase):
             self.assertIn("benchmark_ablation_scorecard.csv", metadata["artifacts"])
             self.assertIn("benchmark_candidate_parameter_audit.csv", metadata["artifacts"])
             self.assertIn("benchmark_candidate_parameter_audit_summary.csv", metadata["artifacts"])
+            self.assertIn("benchmark_candidate_design_decisions.csv", metadata["artifacts"])
+            self.assertIn("benchmark_regime_promotion_decisions.csv", metadata["artifacts"])
             self.assertGreater(metadata["windows_evaluated"], 0)
             self.assertTrue((scorecard["windows"] > 0).all())
             self.assertTrue((win_rate["candidate_win_rate"] >= 0.0).all())
@@ -150,6 +170,9 @@ class TestBenchmarkSuite(unittest.TestCase):
             self.assertTrue((calibration["interval_calibration_error"] >= 0.0).all())
             self.assertIn("nonzero_exog_coef_count", parameter_audit.columns)
             self.assertIn("zero_exog_fit_rate", parameter_audit_summary.columns)
+            self.assertIn("design_decision", candidate_design.columns)
+            self.assertIn("promotion_ready", candidate_design.columns)
+            self.assertIn("regime_changes_decision", regime_promotion.columns)
 
     def test_run_benchmark_suite_supports_candidate_ablation_variants(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -177,6 +200,8 @@ class TestBenchmarkSuite(unittest.TestCase):
             dm = pd.read_csv(paths["diebold_mariano"])
             parameter_audit = pd.read_csv(paths["parameter_audit"])
             parameter_audit_summary = pd.read_csv(paths["parameter_audit_summary"])
+            candidate_design = pd.read_csv(paths["candidate_design"])
+            regime_promotion = pd.read_csv(paths["regime_promotion"])
             expected_candidates = {
                 "candidate_arimax",
                 "candidate_arimax_weather_only",
@@ -193,6 +218,8 @@ class TestBenchmarkSuite(unittest.TestCase):
             self.assertTrue(expected_candidates.issubset(set(parameter_audit["candidate_model"])))
             self.assertTrue(expected_candidates.issubset(set(parameter_audit_summary["candidate_model"])))
             self.assertIn("all_exog_coef_zero", parameter_audit.columns)
+            self.assertTrue(expected_candidates.intersection(set(candidate_design["candidate_model"])))
+            self.assertIn("regime_changes_decision", regime_promotion.columns)
 
     def test_run_benchmark_suite_records_dropped_constant_exog_columns(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
