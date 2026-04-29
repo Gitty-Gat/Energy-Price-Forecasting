@@ -64,9 +64,9 @@ The repo is considered leveled up when all of the following are true:
 ## Next
 
 ### Best next slices for implementation delegates
-1. **Run baseline-ladder sensitivity before any new model idea**
-   - The approved ladder is recorded in `docs/project-plan/BASELINE_LEADERBOARD_2026-04-28.md`.
-   - First next check should be rolling-mean window sensitivity for the baseline ladder, not ARIMAX revival.
+1. **Run rolling-mean window sensitivity before any new model idea**
+   - Baseline integrity held after adding `drift_naive`; see `docs/project-plan/BASELINE_INTEGRITY_STOP_CONTINUE_2026-04-28.md`.
+   - First next check should tune the rolling-mean baseline window, not revive ARIMAX.
 2. **Target follow-up only at regime pockets that changed decisions**
    - Regime slicing found 4 / 72 rows where candidate promotion status changed relative to aggregate pruning.
    - Focus only on those pockets if further regime work is likely to alter promotion/pruning decisions.
@@ -93,6 +93,8 @@ The repo is considered leveled up when all of the following are true:
 - [x] Concrete prune-or-salvage decision recorded in `docs/project-plan/PRUNE_OR_SALVAGE_DECISION_2026-04-28.md`.
 - [x] Approved baseline ladder recorded in `docs/project-plan/BASELINE_LEADERBOARD_2026-04-28.md`.
 - [x] Small ladder check reran surviving test-only variants (`sentiment_only`, `no_exogenous`) against approved baselines; baselines were not beaten.
+- [x] Baseline integrity check added `drift_naive`; approved leaders still held for NG/Oil 5d/20d.
+- [x] Stop/continue checkpoint recorded in `docs/project-plan/BASELINE_INTEGRITY_STOP_CONTINUE_2026-04-28.md`.
 - [x] Real GitHub Actions evidence recorded: run `25085529165` for `.github/workflows/ci.yml` completed successfully on commit `cec1203`.
 - [x] Local-only `mlruns/` and Hydra `outputs/` noise were cleaned during the slice.
 
@@ -119,7 +121,7 @@ The repo is considered leveled up when all of the following are true:
 ## Active focus order
 
 1. preserve the approved baseline ladder as the evidence default
-2. run baseline-family sensitivity checks before any new candidate complexity
+2. run rolling-mean window sensitivity before any new candidate complexity
 3. use regime promotion changes only as targeted diagnostics, not as aggregate promotion evidence
 4. keep interval / uncertainty evaluation width-aware and path-aware rather than terminal-coverage-only
 5. keep the repo clean of regenerated local-only artifacts while benchmark work continues

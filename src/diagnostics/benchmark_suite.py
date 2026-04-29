@@ -130,6 +130,16 @@ def _random_walk_forecast(y_train: pd.Series, horizon: int) -> tuple[np.ndarray,
     return mean, -band, band
 
 
+def _drift_naive_forecast(y_train: pd.Series, horizon: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Forecast with the historical mean return as a simple drift term."""
+    mu = float(y_train.mean()) if len(y_train) else 0.0
+    sigma = float(y_train.std(ddof=1)) if len(y_train) > 1 else 0.0
+    mean = np.full(horizon, mu, dtype=float)
+    steps = np.arange(1, horizon + 1, dtype=float)
+    band = 1.96 * sigma * np.sqrt(steps)
+    return mean, mean - band, mean + band
+
+
 def _rolling_mean_forecast(
     y_train: pd.Series,
     horizon: int,
@@ -404,6 +414,7 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
 
                 baseline_forecasters = {
                     "random_walk": _random_walk_forecast(y_train, horizon),
+                    "drift_naive": _drift_naive_forecast(y_train, horizon),
                     "seasonal_naive": _seasonal_naive_forecast(y_train, horizon, seasonal_period=config.seasonal_period),
                     "simple_ar": _simple_ar_forecast(y_train, horizon),
                     "rolling_mean": _rolling_mean_forecast(y_train, horizon, window=config.rolling_mean_window),

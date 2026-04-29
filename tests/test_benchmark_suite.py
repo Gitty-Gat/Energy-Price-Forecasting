@@ -135,6 +135,7 @@ class TestBenchmarkSuite(unittest.TestCase):
             expected_models = {
                 "candidate_arimax",
                 "random_walk",
+                "drift_naive",
                 "seasonal_naive",
                 "simple_ar",
                 "rolling_mean",

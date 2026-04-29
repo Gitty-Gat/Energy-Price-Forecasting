@@ -102,6 +102,16 @@ No Databento pull is justified for either test. The current blocker is still mod
 
 ---
 
+## Baseline-integrity follow-up
+
+A follow-up integrity check added `drift_naive` as an additional simple comparator and recorded the stop/continue decision in `docs/project-plan/BASELINE_INTEGRITY_STOP_CONTINUE_2026-04-28.md`.
+
+The approved leaders held:
+
+- NG 5d / 20d: `rolling_mean`
+- OL 5d: `simple_ar`
+- OL 20d: `random_walk`
+
 ## Bottom line
 
 The ladder is now explicit:
