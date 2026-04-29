@@ -64,9 +64,9 @@ The repo is considered leveled up when all of the following are true:
 ## Next
 
 ### Best next slices for implementation delegates
-1. **Execute narrow salvage only after the prune decision**
-   - The durable prune-or-salvage decision is recorded in `docs/project-plan/PRUNE_OR_SALVAGE_DECISION_2026-04-28.md`.
-   - Current family is pruned as a promoted path; NG 20d sentiment-only and OL no-exogenous remain test-only salvage leads.
+1. **Run baseline-ladder sensitivity before any new model idea**
+   - The approved ladder is recorded in `docs/project-plan/BASELINE_LEADERBOARD_2026-04-28.md`.
+   - First next check should be rolling-mean window sensitivity for the baseline ladder, not ARIMAX revival.
 2. **Target follow-up only at regime pockets that changed decisions**
    - Regime slicing found 4 / 72 rows where candidate promotion status changed relative to aggregate pruning.
    - Focus only on those pockets if further regime work is likely to alter promotion/pruning decisions.
@@ -91,6 +91,8 @@ The repo is considered leveled up when all of the following are true:
 - [x] Interval calibration now includes path coverage, interval width percentage, and Winkler-style interval score percentage instead of terminal-only coverage.
 - [x] Latest decision result: NG 20d sentiment-only and OL no-exogenous are only candidates under test; no variant beats approved baselines on both RMSE and MAE.
 - [x] Concrete prune-or-salvage decision recorded in `docs/project-plan/PRUNE_OR_SALVAGE_DECISION_2026-04-28.md`.
+- [x] Approved baseline ladder recorded in `docs/project-plan/BASELINE_LEADERBOARD_2026-04-28.md`.
+- [x] Small ladder check reran surviving test-only variants (`sentiment_only`, `no_exogenous`) against approved baselines; baselines were not beaten.
 - [x] Real GitHub Actions evidence recorded: run `25085529165` for `.github/workflows/ci.yml` completed successfully on commit `cec1203`.
 - [x] Local-only `mlruns/` and Hydra `outputs/` noise were cleaned during the slice.
 
@@ -116,18 +118,21 @@ The repo is considered leveled up when all of the following are true:
 
 ## Active focus order
 
-1. prune or redesign the current candidate family because no commodity/horizon variant beats approved baselines on both RMSE and MAE
-2. use regime promotion changes only as targeted diagnostics, not as aggregate promotion evidence
-3. keep interval / uncertainty evaluation width-aware and path-aware rather than terminal-coverage-only
-4. keep the repo clean of regenerated local-only artifacts while benchmark work continues
-5. capture external CI evidence opportunistically without letting it displace benchmark-first execution
+1. preserve the approved baseline ladder as the evidence default
+2. run baseline-family sensitivity checks before any new candidate complexity
+3. use regime promotion changes only as targeted diagnostics, not as aggregate promotion evidence
+4. keep interval / uncertainty evaluation width-aware and path-aware rather than terminal-coverage-only
+5. keep the repo clean of regenerated local-only artifacts while benchmark work continues
 
 ## Immediate next slices
 
-1. **Candidate redesign slice**
+1. **Baseline sensitivity slice**
+   - Run the rolling-mean window sensitivity command from `docs/project-plan/BASELINE_LEADERBOARD_2026-04-28.md`.
+   - Use it only to update the approved baseline ladder, not to promote ARIMAX.
+2. **Candidate redesign slice**
    - Keep the approved baselines as the evidence default.
    - Change the candidate specification only if the new design is benchmarked immediately against random walk, seasonal naive, simple AR, and rolling mean.
-2. **Targeted regime-pocket slice**
+3. **Targeted regime-pocket slice**
    - Inspect only the pockets where `benchmark_regime_promotion_decisions.csv` says regime slicing changed aggregate pruning.
    - Do not broaden regime taxonomy unless it changes promotion/pruning decisions.
 3. **Disposable-artifact hygiene slice**
