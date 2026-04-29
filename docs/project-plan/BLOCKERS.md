@@ -4,31 +4,35 @@ This file is the single durable register of blockers that currently limit comple
 
 ## Priority order
 
-### 1. External GitHub workflow evidence is unavailable from this environment
-- Last re-checked: 2026-04-14 10:07 America/Chicago.
-- We have local CI-equivalent evidence recorded in `docs/project-plan/VERIFICATION_MATRIX.md`.
-- We do **not** have direct observed evidence of a real GitHub Actions run from this environment.
-- The repo remote is configured as `origin https://github.com/Gitty-Gat/Energy-Price-Forecasting.git`.
-- Reason: GitHub CLI / workflow inspection is still unavailable here (`gh` not installed in this environment).
+### 1. Exact-head CI evidence must be re-observed after each new push
+- Last checked: 2026-04-28 22:06 America/Chicago.
+- Real GitHub Actions evidence is available from this environment through the public GitHub API, even though `gh` is not installed.
+- Latest observed run before the prune-or-salvage decision commit:
+  - Workflow: `ci`
+  - Path: `.github/workflows/ci.yml`
+  - Run URL: <https://github.com/Gitty-Gat/Energy-Price-Forecasting/actions/runs/25085529165>
+  - Commit: `cec1203ce25d6d17ff6eb9911e1ba55352bfe663`
+  - Status / conclusion: `completed` / `success`
+  - Jobs: `docs-smoke` success, `test` success
 
 Impact:
-- `CI is green` should remain unverified at the repo-governance level until an actual remote workflow run is observed.
+- The old blocker “no real GitHub Actions run observed” is resolved.
+- New commits still need their own workflow run observed before claiming exact-head CI green.
 
-Smallest resolution:
-- inspect a real workflow run on GitHub and record the run URL / commit SHA / status
-- then update the task board accordingly
+Smallest resolution for each new commit:
+- inspect the latest GitHub Actions run URL / commit SHA / status / conclusion
+- record the result if exact-head CI evidence is needed
 
-### 2. Authenticated remote push cannot be assumed from this environment
-- Local commits can be created.
-- Remote `origin` is configured, but authenticated push has not been verified from this environment.
-- Remote sync cannot be treated as guaranteed from this environment until credentials are confirmed.
+### 2. SSH push path is unavailable in this host, but HTTPS push works
+- `origin` currently points at `git@github.com:Gitty-Gat/Energy-Price-Forecasting.git`.
+- Direct `git push origin main` failed on 2026-04-28 because the host lacks `ssh`.
+- HTTPS push to `https://github.com/Gitty-Gat/Energy-Price-Forecasting.git` succeeded for commit `cec1203`.
 
 Impact:
-- automation can accumulate local commits or partial state without reliable remote publication
+- Prefer HTTPS push from this environment unless `ssh` is installed or the remote is changed.
 
 Smallest resolution:
-- verify push credentials with a successful authenticated `git push`
-- record that evidence in the task board and/or verification docs
+- either continue pushing via explicit HTTPS URL or change `origin` to HTTPS if that is acceptable
 
 ## Not blockers anymore
 

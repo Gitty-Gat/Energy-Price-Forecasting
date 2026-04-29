@@ -42,18 +42,18 @@ The repo is considered leveled up when all of the following are true:
 - [x] Phase 0 — usable-today cleanup and canonical forecast entrypoint are complete.
 - [x] Phase 1 — Hydra/config/schema/test hardening is complete.
 - [x] Phase 2 implementation work is locally complete for DVC, Docker, MLflow, docs, and API smoke.
-- [ ] Phase 2 governance evidence is still incomplete because a real GitHub Actions run has not been observed from this environment.
+- [x] Phase 2 governance evidence now includes an observed real GitHub Actions run for `ci` on `main`.
 
 ### What remains truly open
 - [x] Verify whether authenticated remote push is available from this environment.
 - [x] Run denser benchmark coverage on the canonical 5-day and 20-day horizons.
 - [x] Add exogenous ablation runs (weather-only, sentiment-only, combined, no-exogenous).
 - [ ] Keep local-only generated artifacts out of git while working through the benchmark lane.
-- [ ] Observe and record a real GitHub Actions run for the current workflow.
+- [x] Observe and record a real GitHub Actions run for the current workflow.
 
 ### Exit criteria still governing the board
 - [x] `dvc repro` works.
-- [ ] CI is green.
+- [x] CI is green for latest observed run `25085529165` on commit `cec1203`.
 - [x] Docker build succeeds.
 - [x] MLflow run logging works.
 - [x] docs site builds.
@@ -64,9 +64,9 @@ The repo is considered leveled up when all of the following are true:
 ## Next
 
 ### Best next slices for implementation delegates
-1. **Use candidate-design decisions to prune the current family**
-   - The 2026-04-28 decision run found no commodity/horizon candidate variant that beats the approved baselines on both RMSE and MAE.
-   - Treat NG 20d sentiment-only and OL no-exogenous as candidates under test, not promoted production choices.
+1. **Execute narrow salvage only after the prune decision**
+   - The durable prune-or-salvage decision is recorded in `docs/project-plan/PRUNE_OR_SALVAGE_DECISION_2026-04-28.md`.
+   - Current family is pruned as a promoted path; NG 20d sentiment-only and OL no-exogenous remain test-only salvage leads.
 2. **Target follow-up only at regime pockets that changed decisions**
    - Regime slicing found 4 / 72 rows where candidate promotion status changed relative to aggregate pruning.
    - Focus only on those pockets if further regime work is likely to alter promotion/pruning decisions.
@@ -90,6 +90,8 @@ The repo is considered leveled up when all of the following are true:
 - [x] Benchmark harness now emits `benchmark_candidate_design_decisions.csv` and `benchmark_regime_promotion_decisions.csv`.
 - [x] Interval calibration now includes path coverage, interval width percentage, and Winkler-style interval score percentage instead of terminal-only coverage.
 - [x] Latest decision result: NG 20d sentiment-only and OL no-exogenous are only candidates under test; no variant beats approved baselines on both RMSE and MAE.
+- [x] Concrete prune-or-salvage decision recorded in `docs/project-plan/PRUNE_OR_SALVAGE_DECISION_2026-04-28.md`.
+- [x] Real GitHub Actions evidence recorded: run `25085529165` for `.github/workflows/ci.yml` completed successfully on commit `cec1203`.
 - [x] Local-only `mlruns/` and Hydra `outputs/` noise were cleaned during the slice.
 
 ---
@@ -132,10 +134,10 @@ The repo is considered leveled up when all of the following are true:
    - Follow `docs/project-plan/DATA_POLICY.md` as the source of truth for Git-vs-DVC ownership.
    - Delete stray local-only `mlruns/`, Hydra `outputs/`, or cache directories if they appear; do not commit them.
    - Do not re-add generated `data/processed/` or `results/` outputs to SCM while DVC stages own them.
-4. **External CI evidence slice (secondary)**
-   - Inspect the most recent real GitHub Actions run for `.github/workflows/ci.yml` when convenient.
+4. **Exact-head CI evidence slice (secondary)**
+   - After each new push, inspect the newest real GitHub Actions run for `.github/workflows/ci.yml` if exact-head CI evidence is needed.
    - Record the run URL, commit SHA, workflow conclusion, and any failing job name in `docs/project-plan/BLOCKERS.md` or this board.
-   - Leave `CI is green` unchecked until external evidence exists.
+   - Do not claim exact-head CI green for a new commit until its run is observed.
 
 ---
 
