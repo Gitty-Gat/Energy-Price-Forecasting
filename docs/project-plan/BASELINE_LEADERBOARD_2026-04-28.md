@@ -112,6 +112,14 @@ The approved leaders held:
 - OL 5d: `simple_ar`
 - OL 20d: `random_walk`
 
+A rolling-mean window sensitivity check then tested windows `5`, `10`, `20`, and `60`; see `docs/project-plan/ROLLING_MEAN_WINDOW_SENSITIVITY_2026-04-30.md`.
+
+The approved ladder still held:
+
+- NG 5d / 20d: `rolling_mean(window=20)`
+- OL 5d: `simple_ar`
+- OL 20d: `random_walk`
+
 ## Bottom line
 
 The ladder is now explicit:
