@@ -115,6 +115,7 @@ class TestBenchmarkSuite(unittest.TestCase):
                 "parameter_audit",
                 "parameter_audit_summary",
                 "candidate_design",
+                "promotion_gates",
                 "regime_promotion",
                 "metadata",
             }:
@@ -129,6 +130,7 @@ class TestBenchmarkSuite(unittest.TestCase):
             parameter_audit = pd.read_csv(paths["parameter_audit"])
             parameter_audit_summary = pd.read_csv(paths["parameter_audit_summary"])
             candidate_design = pd.read_csv(paths["candidate_design"])
+            promotion_gates = pd.read_csv(paths["promotion_gates"])
             regime_promotion = pd.read_csv(paths["regime_promotion"])
             metadata = json.loads(paths["metadata"].read_text(encoding="utf-8"))
 
@@ -163,7 +165,10 @@ class TestBenchmarkSuite(unittest.TestCase):
             self.assertIn("benchmark_candidate_parameter_audit.csv", metadata["artifacts"])
             self.assertIn("benchmark_candidate_parameter_audit_summary.csv", metadata["artifacts"])
             self.assertIn("benchmark_candidate_design_decisions.csv", metadata["artifacts"])
+            self.assertIn("benchmark_candidate_promotion_gates.csv", metadata["artifacts"])
             self.assertIn("benchmark_regime_promotion_decisions.csv", metadata["artifacts"])
+            self.assertEqual(metadata["promotion_gate"]["requires_candidate_rmse_below_best_baseline"], True)
+            self.assertEqual(metadata["promotion_gate"]["requires_candidate_mae_below_best_baseline"], True)
             self.assertGreater(metadata["windows_evaluated"], 0)
             self.assertTrue((scorecard["windows"] > 0).all())
             self.assertTrue((win_rate["candidate_win_rate"] >= 0.0).all())
@@ -173,6 +178,11 @@ class TestBenchmarkSuite(unittest.TestCase):
             self.assertIn("zero_exog_fit_rate", parameter_audit_summary.columns)
             self.assertIn("design_decision", candidate_design.columns)
             self.assertIn("promotion_ready", candidate_design.columns)
+            self.assertIn("beats_best_baseline_rmse", candidate_design.columns)
+            self.assertIn("beats_best_baseline_mae", candidate_design.columns)
+            self.assertIn("passes_uncertainty_sanity", candidate_design.columns)
+            self.assertIn("mean_interval_width_vs_best_baseline_ratio", candidate_design.columns)
+            self.assertIn("passes_uncertainty_sanity", promotion_gates.columns)
             self.assertIn("regime_changes_decision", regime_promotion.columns)
 
     def test_run_benchmark_suite_supports_candidate_ablation_variants(self) -> None:
@@ -202,6 +212,7 @@ class TestBenchmarkSuite(unittest.TestCase):
             parameter_audit = pd.read_csv(paths["parameter_audit"])
             parameter_audit_summary = pd.read_csv(paths["parameter_audit_summary"])
             candidate_design = pd.read_csv(paths["candidate_design"])
+            promotion_gates = pd.read_csv(paths["promotion_gates"])
             regime_promotion = pd.read_csv(paths["regime_promotion"])
             expected_candidates = {
                 "candidate_arimax",
@@ -220,6 +231,10 @@ class TestBenchmarkSuite(unittest.TestCase):
             self.assertTrue(expected_candidates.issubset(set(parameter_audit_summary["candidate_model"])))
             self.assertIn("all_exog_coef_zero", parameter_audit.columns)
             self.assertTrue(expected_candidates.intersection(set(candidate_design["candidate_model"])))
+            self.assertIn("promotion_ready", promotion_gates.columns)
+            self.assertIn("beats_best_baseline_rmse", promotion_gates.columns)
+            self.assertIn("beats_best_baseline_mae", promotion_gates.columns)
+            self.assertIn("passes_uncertainty_sanity", promotion_gates.columns)
             self.assertIn("regime_changes_decision", regime_promotion.columns)
 
     def test_run_benchmark_suite_records_dropped_constant_exog_columns(self) -> None:

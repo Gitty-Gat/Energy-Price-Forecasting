@@ -20,6 +20,10 @@ if __package__ in {None, ""}:
 from src.pipelines.forecast import load_and_clean_merged, select_exog_variant_columns
 
 
+PROMOTION_MIN_PATH_INTERVAL_COVERAGE = 0.90
+PROMOTION_MAX_UNCERTAINTY_RATIO_VS_BASELINE = 2.0
+
+
 @dataclass
 class BenchmarkConfig:
     merged: str
@@ -45,6 +49,12 @@ def _with_range_index(obj: pd.Series | pd.DataFrame, start: int = 0) -> pd.Serie
     out = obj.copy()
     out.index = pd.RangeIndex(start=start, stop=start + len(out))
     return out
+
+
+def _safe_ratio(numerator: pd.Series, denominator: pd.Series) -> np.ndarray:
+    numer = numerator.to_numpy(dtype=float)
+    denom = denominator.to_numpy(dtype=float)
+    return np.where(denom > 0.0, numer / denom, np.where(numer == 0.0, 1.0, np.inf))
 
 
 def _fit_sarimax(
@@ -552,6 +562,10 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
                 "mae": "best_baseline_mae",
                 "directional_accuracy": "best_baseline_directional_accuracy",
                 "interval_coverage": "best_baseline_interval_coverage",
+                "path_interval_coverage": "best_baseline_path_interval_coverage",
+                "mean_interval_width_pct": "best_baseline_mean_interval_width_pct",
+                "terminal_interval_width_pct": "best_baseline_terminal_interval_width_pct",
+                "winkler_score_pct": "best_baseline_winkler_score_pct",
                 "terminal_abs_error": "best_baseline_terminal_abs_error",
                 "windows": "best_baseline_windows",
             }
@@ -576,7 +590,35 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
         ablation_scorecard["mae_vs_combined_ratio"] = ablation_scorecard["mae"] / ablation_scorecard["combined_mae"]
     ablation_scorecard["beats_best_baseline_rmse"] = ablation_scorecard["rmse"] < ablation_scorecard["best_baseline_rmse"]
     ablation_scorecard["beats_best_baseline_mae"] = ablation_scorecard["mae"] < ablation_scorecard["best_baseline_mae"]
-    ablation_scorecard["promotion_ready"] = ablation_scorecard["beats_best_baseline_rmse"] & ablation_scorecard["beats_best_baseline_mae"]
+    ablation_scorecard["path_interval_coverage_minimum"] = PROMOTION_MIN_PATH_INTERVAL_COVERAGE
+    ablation_scorecard["mean_interval_width_vs_best_baseline_ratio"] = _safe_ratio(
+        ablation_scorecard["mean_interval_width_pct"],
+        ablation_scorecard["best_baseline_mean_interval_width_pct"],
+    )
+    ablation_scorecard["winkler_score_vs_best_baseline_ratio"] = _safe_ratio(
+        ablation_scorecard["winkler_score_pct"],
+        ablation_scorecard["best_baseline_winkler_score_pct"],
+    )
+    ablation_scorecard["uncertainty_width_ratio_maximum"] = PROMOTION_MAX_UNCERTAINTY_RATIO_VS_BASELINE
+    ablation_scorecard["passes_path_interval_coverage"] = (
+        ablation_scorecard["path_interval_coverage"] >= ablation_scorecard["path_interval_coverage_minimum"]
+    )
+    ablation_scorecard["passes_mean_interval_width_ratio"] = (
+        ablation_scorecard["mean_interval_width_vs_best_baseline_ratio"] <= ablation_scorecard["uncertainty_width_ratio_maximum"]
+    )
+    ablation_scorecard["passes_winkler_score_ratio"] = (
+        ablation_scorecard["winkler_score_vs_best_baseline_ratio"] <= ablation_scorecard["uncertainty_width_ratio_maximum"]
+    )
+    ablation_scorecard["passes_uncertainty_sanity"] = (
+        ablation_scorecard["passes_path_interval_coverage"]
+        & ablation_scorecard["passes_mean_interval_width_ratio"]
+        & ablation_scorecard["passes_winkler_score_ratio"]
+    )
+    ablation_scorecard["promotion_ready"] = (
+        ablation_scorecard["beats_best_baseline_rmse"]
+        & ablation_scorecard["beats_best_baseline_mae"]
+        & ablation_scorecard["passes_uncertainty_sanity"]
+    )
     ablation_scorecard = ablation_scorecard.sort_values(
         ["commodity", "horizon", "rmse", "mae", "terminal_abs_error", "candidate_model"]
     ).reset_index(drop=True)
@@ -598,6 +640,21 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
             "best_baseline_mae",
             "rmse_vs_best_baseline_ratio",
             "mae_vs_best_baseline_ratio",
+            "beats_best_baseline_rmse",
+            "beats_best_baseline_mae",
+            "path_interval_coverage",
+            "path_interval_coverage_minimum",
+            "mean_interval_width_pct",
+            "best_baseline_mean_interval_width_pct",
+            "mean_interval_width_vs_best_baseline_ratio",
+            "winkler_score_pct",
+            "best_baseline_winkler_score_pct",
+            "winkler_score_vs_best_baseline_ratio",
+            "uncertainty_width_ratio_maximum",
+            "passes_path_interval_coverage",
+            "passes_mean_interval_width_ratio",
+            "passes_winkler_score_ratio",
+            "passes_uncertainty_sanity",
             "promotion_ready",
         ]
     ].copy()
@@ -722,6 +779,13 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
         "exog_columns_retained": exog.columns.tolist(),
         "exog_columns_dropped_constant": list(exog.attrs.get("dropped_constant_columns", [])),
         "commodities": sorted(raw_df["commodity"].unique().tolist()),
+        "promotion_gate": {
+            "requires_candidate_rmse_below_best_baseline": True,
+            "requires_candidate_mae_below_best_baseline": True,
+            "min_path_interval_coverage": PROMOTION_MIN_PATH_INTERVAL_COVERAGE,
+            "max_mean_interval_width_ratio_vs_best_baseline": PROMOTION_MAX_UNCERTAINTY_RATIO_VS_BASELINE,
+            "max_winkler_score_ratio_vs_best_baseline": PROMOTION_MAX_UNCERTAINTY_RATIO_VS_BASELINE,
+        },
         "artifacts": [
             "benchmark_window_metrics.csv",
             "benchmark_scorecard.csv",
@@ -733,6 +797,7 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
             "benchmark_candidate_parameter_audit.csv",
             "benchmark_candidate_parameter_audit_summary.csv",
             "benchmark_candidate_design_decisions.csv",
+            "benchmark_candidate_promotion_gates.csv",
             "benchmark_regime_promotion_decisions.csv",
         ],
     }
@@ -747,6 +812,7 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
     parameter_audit_path = out_dir / "benchmark_candidate_parameter_audit.csv"
     parameter_audit_summary_path = out_dir / "benchmark_candidate_parameter_audit_summary.csv"
     candidate_design_path = out_dir / "benchmark_candidate_design_decisions.csv"
+    promotion_gates_path = out_dir / "benchmark_candidate_promotion_gates.csv"
     regime_promotion_path = out_dir / "benchmark_regime_promotion_decisions.csv"
     metadata_path = out_dir / "benchmark_metadata.json"
 
@@ -760,6 +826,7 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
     parameter_audit.to_csv(parameter_audit_path, index=False)
     parameter_audit_summary.to_csv(parameter_audit_summary_path, index=False)
     candidate_design.to_csv(candidate_design_path, index=False)
+    candidate_design.to_csv(promotion_gates_path, index=False)
     regime_promotion.to_csv(regime_promotion_path, index=False)
     metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 
@@ -774,6 +841,7 @@ def run_benchmark_suite(config: BenchmarkConfig) -> dict[str, Path]:
         "parameter_audit": parameter_audit_path,
         "parameter_audit_summary": parameter_audit_summary_path,
         "candidate_design": candidate_design_path,
+        "promotion_gates": promotion_gates_path,
         "regime_promotion": regime_promotion_path,
         "metadata": metadata_path,
     }

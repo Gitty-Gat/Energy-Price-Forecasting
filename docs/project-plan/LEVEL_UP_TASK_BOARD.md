@@ -64,9 +64,9 @@ The repo is considered leveled up when all of the following are true:
 ## Next
 
 ### Best next slices for implementation delegates
-1. **Harden the candidate promotion gate before any new model idea**
-   - Rolling-mean window sensitivity held the ladder; see `docs/project-plan/ROLLING_MEAN_WINDOW_SENSITIVITY_2026-04-30.md`.
-   - Next check should make promotion criteria machine-readable or directly audited from benchmark outputs.
+1. **Integrate promotion-gate reporting before any new model idea**
+   - Promotion gate is now machine-readable; see `docs/project-plan/PROMOTION_GATE_HARDENING_2026-04-30.md`.
+   - Next check should make gate inspection easy from CLI/reporting, or add a regression fixture that blocks bad promotion.
 2. **Target follow-up only at regime pockets that changed decisions**
    - Regime slicing found 4 / 72 rows where candidate promotion status changed relative to aggregate pruning.
    - Focus only on those pockets if further regime work is likely to alter promotion/pruning decisions.
@@ -96,6 +96,7 @@ The repo is considered leveled up when all of the following are true:
 - [x] Baseline integrity check added `drift_naive`; approved leaders still held for NG/Oil 5d/20d.
 - [x] Stop/continue checkpoint recorded in `docs/project-plan/BASELINE_INTEGRITY_STOP_CONTINUE_2026-04-28.md`.
 - [x] Rolling-mean window sensitivity tested windows `5`, `10`, `20`, and `60`; approved leaders still held.
+- [x] Candidate promotion gate made machine-readable with RMSE, MAE, and uncertainty sanity checks.
 - [x] Real GitHub Actions evidence recorded: run `25085529165` for `.github/workflows/ci.yml` completed successfully on commit `cec1203`.
 - [x] Local-only `mlruns/` and Hydra `outputs/` noise were cleaned during the slice.
 
@@ -122,7 +123,7 @@ The repo is considered leveled up when all of the following are true:
 ## Active focus order
 
 1. preserve the approved baseline ladder as the evidence default
-2. harden the candidate promotion gate before any new candidate complexity
+2. integrate promotion-gate reporting before any new candidate complexity
 3. use regime promotion changes only as targeted diagnostics, not as aggregate promotion evidence
 4. keep interval / uncertainty evaluation width-aware and path-aware rather than terminal-coverage-only
 5. keep the repo clean of regenerated local-only artifacts while benchmark work continues
